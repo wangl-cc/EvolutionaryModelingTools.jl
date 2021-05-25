@@ -1,0 +1,8 @@
+name = "GillespieTools"
+uuid = "faf572ed-2b53-4324-a741-daa175e50348"
+authors = ["Long Wang <wangl.cc@outlook.com>"]
+version = "0.1.0"
+
+[deps]
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+RecordedArrays = "1040807a-3a2f-4266-b2c1-805b33c7034a"

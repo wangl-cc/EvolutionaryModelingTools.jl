@@ -1,15 +1,14 @@
 module GillespieTools
 
 using RecordedArrays
-using RecordedArrays:AbstractClock
 using Random
 
-export montecarlo
-export Reaction, Model, oneloop!, gillespie!
 export @args
+export Reaction, Model, rsample, rupdate!, gillespie, gillespie!
+export rsample
 
+include("tools.jl")
 include("sample.jl")
 include("model.jl")
-include("tools.jl")
 
 end # module

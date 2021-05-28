@@ -3,41 +3,20 @@
 
 Sampling a index of given array `A` with weight `A`.
 """
-function sample(
-    ::AbstractRNG,
-    x::Real,
-    ::Real = x,
-)
-    return 1
-end
-
-function sample(
-    rng::AbstractRNG,
-    V::Union{AbstractVector,Tuple},
-    wv_sum::Real = sum(V),
-)
-    t = rand(rng) * wv_sum
-    n = length(V)
-    i = 1
-    cw = V[1]
-    while cw < t && i < n
-        i += 1
-        @inbounds cw += V[i]
-    end
-    return i
-end
-
-function sample(
-    rng::AbstractRNG,
-    A::AbstractArray,
-    sum_A::Real = sum(A),
-)
-    ind = sample(rng, vec(A), sum_A)
-    return ind2sub(A, ind)
-end
-
-function sample(wa::Union{AbstractArray,Tuple,Real}, wa_sum::Real = sum(wa))
-    return sample(Random.GLOBAL_RNG, wa, wa_sum)
+function sample end
+# sample for single real number
+sample(::AbstractRNG, ::Real) = CartesianIndex(1)
+sample(::AbstractRNG, ::Real, ::Real) = CartesianIndex(1)
+# sample for real scalar
+sample(::AbstractRNG, ::AbstractArray{<:Real,0})= CartesianIndex(1)
+sample(::AbstractRNG, ::AbstractArray{<:Real,0}, ::Real)= CartesianIndex(1)
+# sample for real vector
+sample(rng::AbstractRNG, V::AbstractVector{<:Real}, sum_A::Real=sum(V)) =
+    CartesianIndex(_sample(rng, V, sum_A))
+# sample for real multi-dimensional array
+function sample(rng::AbstractRNG, A::AbstractArray{<:Real,N}, sum_A::Real=sum(A)) where {N}
+    ind = _sample(rng, vec(A), sum_A)
+    return CartesianIndex(ind2sub(A, ind))::CartesianIndex{N}
 end
 
 """
@@ -56,19 +35,16 @@ else
     end
 end
 
-"""
-    montecarlo([rng=GLOBAL_RNG], as)
-
-Monte-Carlo step of Gillespie algorithm.
-"""
-function montecarlo(rng::AbstractRNG, as::Union{Real,AbstractArray}...)
-    as_sum = map(sum, as)
-    as_sum_sum = sum(as_sum)
-    iszero(as_sum_sum) && return nothing
-    τ = -log(rand(rng)) / as_sum_sum
-    ind = sample(rng, as_sum, as_sum_sum)
-    sub = sample(rng, as[ind], as_sum[ind])
-    return τ, ind, sub
+# This method is a modification of `sample([rng], wv::AbstractWeights)` of
+# `StatsBase.jl` [MIT License](https://github.com/JuliaStats/StatsBase.jl)
+function _sample(rng::AbstractRNG, V::AbstractVector{<:Real}, sum_V::Real)
+    t = rand(rng) * sum_V
+    n = length(V)
+    i = 1
+    cw = V[1]
+    while cw < t && i < n
+        i += 1
+        @inbounds cw += V[i]
+    end
+    return i
 end
-
-montecarlo(rs::Union{Real,AbstractArray}...) = montecarlo(Random.GLOBAL_RNG, rs...)

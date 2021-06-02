@@ -3,7 +3,7 @@ macro args(ex)
     outerargs = filter(x -> isa(x, Symbol), funcargs) # like ind
     func1 = Expr(
         :(=),
-        :($funcname(args::NamedTuple, $(outerargs...))),
+        :($funcname($(outerargs...), args::NamedTuple,)),
         :($funcname($(funcargs...))),
     )
     return esc(Expr(:block, func1, ex))

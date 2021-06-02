@@ -34,7 +34,7 @@ function rupdate!(m::Model, state)
     τ, ind, sub = state
     increase!(m.c, τ)
     r = m.rs[ind]
-    (r.u)(m.ps, sub)
+    (r.u)(sub, m.ps)
     return false
 end
 

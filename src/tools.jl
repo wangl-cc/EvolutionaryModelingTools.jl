@@ -1,9 +1,10 @@
+const PRESERVED_ARGS = (:ind,)
+
 macro args(ex)
     funcname, funcargs = _parsefunc(Val(ex.head), ex.args...)
-    outerargs = filter(x -> isa(x, Symbol), funcargs) # like ind
     func1 = Expr(
         :(=),
-        :($funcname($(outerargs...), args::NamedTuple,)),
+        :($funcname($(PRESERVED_ARGS...), args::NamedTuple,)),
         :($funcname($(funcargs...))),
     )
     return esc(Expr(:block, func1, ex))
@@ -18,8 +19,8 @@ _genarg(arg::Symbol) = _warparg(arg)
 _genarg(arg::Expr) = _warparg(arg.args[1])
 
 function _warparg(sym::Symbol)
-    if sym == :ind
-        return :ind
+    if sym in PRESERVED_ARGS
+        return sym
     else
         return Expr(:., :args, QuoteNode(sym))
     end

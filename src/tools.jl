@@ -1,10 +1,20 @@
 const PRESERVED_ARGS = (:ind,)
 
-macro args(ex)
+macro cfunc(ex)
     funcname, funcargs = _parsefunc(Val(ex.head), ex.args...)
     func1 = Expr(
         :(=),
-        :($funcname($(PRESERVED_ARGS...), args::NamedTuple,)),
+        :($funcname(args::NamedTuple)),
+        :($funcname($(funcargs...))),
+    )
+    return esc(Expr(:block, func1, ex))
+end
+
+macro ufunc(ex)
+    funcname, funcargs = _parsefunc(Val(ex.head), ex.args...)
+    func1 = Expr(
+        :(=),
+        :($funcname($(PRESERVED_ARGS...), args::NamedTuple)),
         :($funcname($(funcargs...))),
     )
     return esc(Expr(:block, func1, ex))

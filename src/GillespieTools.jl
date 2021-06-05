@@ -3,7 +3,7 @@ module GillespieTools
 using RecordedArrays
 using Random
 
-export @args
+export @cfunc, @ufunc
 export Reaction, Model, rsample, rupdate!, gillespie, gillespie!
 export rsample
 

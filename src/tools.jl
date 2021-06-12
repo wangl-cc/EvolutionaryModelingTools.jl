@@ -28,32 +28,16 @@ macro reaction(name::Symbol, block::Expr)
         ubody = block.args[4]
         cargs = collectargs(cbody)
         uargs = collectargs(ubody)
-        cfunc = _gencfunc(cname, block.args[2])
-        ufunc = _genufunc(uname, block.args[4])
         return esc(Expr(:block,
-            Expr(:(=), :($cname(args::NamedTuple)), :($cname($(_genarg.(cargs)...)))),
+            Expr(:(=), :($cname(args::NamedTuple)), :($cname($(_warparg.(cargs)...)))),
             Expr(:(=), :($cname($(cargs...))), cbody),
-            Expr(:(=), :($uname($(PRESERVED_ARGS...), args::NamedTuple)), :($uname($(_genarg.(uargs)...)))),
+            Expr(:(=), :($uname($(PRESERVED_ARGS...), args::NamedTuple)), :($uname($(_warparg.(uargs)...)))),
             Expr(:(=), :($uname($(uargs...))), ubody),
             Expr(:(=), name, :(Reaction($cname, $uname))),
            ))
     else
         throw(ArgumentError("block"))
     end
-end
-
-function _gencfunc(name::Symbol, ex)
-    funcargs = collectargs(ex)
-    return Expr(
-        :(=),
-        :($name(args::NamedTuple)),
-        ex
-    )
-end
-
-function _genufunc(name::Symbol, ex)
-    funcargs = collectargs(ex)
-    Expr(:(=), :($name($)), ex)
 end
 
 function _parsefunc(ex::Expr)
@@ -80,18 +64,29 @@ function _warparg(sym::Symbol)
     end
 end
 
-collectargs(ex) = collectargs!(Set{Symbol}(), ex)
+collectargs(ex) = collectargs!(Set{Symbol}(), Set{Symbol}(), ex)
 
-collectargs!(syms, ::Any) = syms
-collectargs!(syms, ex::Symbol) = (ex in syms ? syms : push!(syms, ex))
-function collectargs!(syms, ex::Expr)
-    if ex.head == :call # Callable will not be treat as a args
-        args = ex.args[2:end]
+collectargs!(syms, _, _) = syms
+function collectargs!(syms, iv, sym::Symbol)
+    if !in(sym, syms) && !in(sym, iv)
+        push!(syms, sym)
+    end
+    return syms
+end
+function collectargs!(syms, iv, ex::Expr)
+    head = ex.head
+    if head == :call # Callable will not be treat as a args
+        args = @view ex.args[2:end]
+    elseif head == :(=)  # assignment
+        collectargs!(iv, iv, ex.args[1])
+        return collectargs!(syms, iv, ex.args[2])
+    elseif head == :.    # getproperty
+        return collectargs!(syms, iv, ex.args[1])
     else
         args = ex.args
     end
     for arg in args
-        collectargs!(syms, arg)
+        collectargs!(syms, iv, arg)
     end
     return syms
 end

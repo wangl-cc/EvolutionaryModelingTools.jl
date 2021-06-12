@@ -1,7 +1,7 @@
 const PRESERVED_ARGS = (:ind,)
 
 macro cfunc(ex)
-    funcname, funcargs = _parsefunc(Val(ex.head), ex.args...)
+    funcname, funcargs = _parsefunc(ex)
     func1 = Expr(
         :(=),
         :($funcname(args::NamedTuple)),
@@ -11,7 +11,7 @@ macro cfunc(ex)
 end
 
 macro ufunc(ex)
-    funcname, funcargs = _parsefunc(Val(ex.head), ex.args...)
+    funcname, funcargs = _parsefunc(ex)
     func1 = Expr(
         :(=),
         :($funcname($(PRESERVED_ARGS...), args::NamedTuple)),
@@ -56,13 +56,21 @@ function _genufunc(name::Symbol, ex)
     Expr(:(=), :($name($)), ex)
 end
 
-_parsefunc(::Val{:function}, ex, _...) = _parsefunc(Val(ex.head), ex.args...)
-_parsefunc(::Val{:(=)}, ex, _...) = _parsefunc(Val(ex.head), ex.args...)
-_parsefunc(::Val{:where}, ex, _...) = _parsefunc(Val(ex.head), ex.args...)
-_parsefunc(::Val{:call}, name, args...) = name, _genarg.(args)
+function _parsefunc(ex::Expr)
+    head = ex.head
+    if head in (:function, :(=), :where)
+        return _parsefunc(ex.args[1])
+    elseif head == :call
+        funcname, args... = ex.args # for julia v1.6+
+        funcargs = _parsearg.(args)
+        return funcname, funcargs
+    else
+        error("Unknown expr")
+    end
+end
 
-_genarg(arg::Symbol) = _warparg(arg)
-_genarg(arg::Expr) = _warparg(arg.args[1])
+_parsearg(arg::Symbol) = _warparg(arg)
+_parsearg(arg::Expr) = _warparg(arg.args[1])
 
 function _warparg(sym::Symbol)
     if sym in PRESERVED_ARGS

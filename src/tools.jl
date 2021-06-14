@@ -45,8 +45,8 @@ function _parsefunc(ex::Expr)
     if head in (:function, :(=), :where)
         return _parsefunc(ex.args[1])
     elseif head == :call
-        funcname, args... = ex.args # for julia v1.6+
-        funcargs = _parsearg.(args)
+        funcname = ex.args[1]
+        funcargs = _parsearg.(@view ex.args[2:end])
         return funcname, funcargs
     else
         error("Unknown expr")

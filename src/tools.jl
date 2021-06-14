@@ -77,9 +77,11 @@ function collectargs!(syms, iv, ex::Expr)
     head = ex.head
     if head == :call # Callable will not be treat as a args
         args = @view ex.args[2:end]
-    elseif head == :(=)  # assignment
-        collectargs!(iv, iv, ex.args[1])
-        return collectargs!(syms, iv, ex.args[2])
+    elseif head == :(=) && # assignment to one or multi new symbol
+        (ex.args[1] isa Symbol || (ex.args isa Expr && args.head == :tuple))
+        collectargs!(syms, iv, ex.args[2]) # must collect syms firstly #2
+        collectargs!(iv, syms, ex.args[1]) # collect internal variables
+        return syms
     elseif head == :.    # getproperty
         return collectargs!(syms, iv, ex.args[1])
     else

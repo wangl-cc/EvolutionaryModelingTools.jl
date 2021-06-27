@@ -13,6 +13,7 @@ sample(::AbstractRNG, ::AbstractArray{<:Real,0}, ::Real)= CartesianIndex(1)
 # sample for real vector
 sample(rng::AbstractRNG, V::AbstractVector{<:Real}, sum_A::Real=sum(V)) =
     CartesianIndex(_sample(rng, V, sum_A))
+sample(rng::AbstractRNG, V::Tuple, sum_A::Real=sum(V)) = _sample(rng, V, sum_A)
 # sample for real multi-dimensional array
 function sample(rng::AbstractRNG, A::AbstractArray{<:Real,N}, sum_A::Real=sum(A)) where {N}
     ind = _sample(rng, vec(A), sum_A)
@@ -37,7 +38,7 @@ end
 
 # This method is a modification of `sample([rng], wv::AbstractWeights)` of
 # `StatsBase.jl` [MIT License](https://github.com/JuliaStats/StatsBase.jl)
-function _sample(rng::AbstractRNG, V::AbstractVector{<:Real}, sum_V::Real)
+function _sample(rng::AbstractRNG, V, sum_V::Real)
     t = rand(rng) * sum_V
     n = length(V)
     i = 1

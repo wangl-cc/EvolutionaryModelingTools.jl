@@ -4,8 +4,7 @@ using RecordedArrays
 using Random
 
 export @cfunc, @ufunc, @reaction
-export Reaction, Model, rsample, rupdate!, gillespie, gillespie!
-export rsample
+export Reaction, Model, gillespie, gillespie!
 
 include("tools.jl")
 include("sample.jl")

@@ -17,49 +17,57 @@ struct SSAResults{T}
     state::Symbol
 end
 
-function rsample(m::Model)
-    rng = m.rng
-    as = [(r.c)(m.ps) for r in m.rs]
-    as_sum = map(sum, as)
-    as_sum_sum = sum(as_sum)
-    iszero(as_sum_sum) && return nothing
-    τ = -log(rand(rng)) / as_sum_sum
-    ind = sample(rng, as_sum, as_sum_sum)
-    sub = sample(rng, as[ind], as_sum[ind])
-    return τ, ind, sub
+# type stable map for tuple
+@generated function gmap(f, tp::Tuple)
+    FTs = tp.parameters
+    FN  = length(FTs)
+    return Expr(:tuple, (:(f(tp[$i])) for i in 1:FN)...)
 end
 
-rupdate!(::Model, ::Nothing) = true
-function rupdate!(m::Model, state)
-    τ, ind, sub = state
-    increase!(m.c, τ)
-    r = m.rs[ind]
-    (r.u)(sub, m.ps)
-    return false
+# generate if-elseif branch for each reaction for type stable code
+@generated function applyreaction(rng, rs, ps, as, as_sum, ind)
+    RTs = rs.parameters
+    RN  = length(RTs)
+    ex = Expr(:elseif, :(ind==$RN), quote
+            (rs[$RN].u)(sample(rng, as[$RN], as_sum[$RN]), ps); nothing
+        end)
+    for i in RN-1:-1:2
+        ex = Expr(:elseif, :(ind==$i), quote
+                (rs[$i].u)(sample(rng, as[$i], as_sum[$i]), ps); nothing
+            end, ex)
+    end
+    return Expr(:if, :(ind==1), quote
+            (rs[1].u)(sample(rng, as[1], as_sum[1]), ps); nothing
+        end, ex)
 end
 
-function gillespie!(m::Model)
+function gillespie!(rng::AbstractRNG, c::AbstractClock, ps::NamedTuple, rs::Tuple)
     term_state = :finnish
-    for _ in m.c
-        term = rupdate!(m, rsample(m))
-        if term
+    for _ in c
+        as = gmap(r -> (r.c)(ps), rs)
+        as_sum = gmap(sum, as)
+        as_sum_sum = sum(as_sum)
+        if iszero(as_sum_sum)
             term_state = :break
             break
         end
+        τ = -log(rand(rng)) / as_sum_sum
+        increase!(c, τ)
+        ind = sample(rng, as_sum, as_sum_sum)::Int
+        applyreaction(rng, rs, ps, as, as_sum, ind)
     end
     return term_state
 end
 
 function gillespie(rng::AbstractRNG, c::AbstractClock, ps::NamedTuple, rs::Tuple)
     c = deepcopy(c)
-    ps_copy = typeof(ps)(_copy_ps(c, p) for p in ps)
-    m = Model(rng, c, ps_copy, rs)
-    term_state = gillespie!(m)
-    return SSAResults(m.ps, term_state)
+    ps_copy = map(p -> _copy_ps(c, p), ps)
+    term_state = gillespie!(rng, c, ps_copy, rs)
+    return SSAResults(ps_copy, term_state)
 end
 gillespie(c::AbstractClock, ps::NamedTuple, rs::Tuple) =
     gillespie(Random.GLOBAL_RNG, c, ps, rs)
 
-_copy_ps(::AbstractClock, x) = x
+_copy_ps(::AbstractClock, x) = copy(x)
 _copy_ps(c::AbstractClock, x::RecordedArrays.AbstractRArray) =
     setclock(x, c)

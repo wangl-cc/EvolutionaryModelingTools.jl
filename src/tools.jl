@@ -1,25 +1,107 @@
-const PRESERVED_ARGS = (:ind,)
+const PRESERVED_VAR_NAME = [:ind]
 
+"""
+    @cfunc ex
+
+Define a "calculation" function with an "adapter" methods used to parse args from model.
+More about "calculate" functions, see [`Reaction`](@ref).
+
+For function definition:
+```julia
+@cfunc @inline growth_c(r, x::Vector) = r * x # function to calculate "growth rate"
+```
+This macro creates two methods, an "adapter" method
+```julia
+growth_c(args::NamedTuple) = growth_c(args.r, args.x)
+```
+and the origin method
+```julia
+@inline growth_c(r, x::Vector) = r * x
+```
+
+!!! info
+    For function definition with other macros, put those macros after this macro.
+"""
 macro cfunc(ex)
-    funcname, funcargs = _parsefunc(ex)
-    func1 = Expr(
-        :(=),
-        :($funcname(args::NamedTuple)),
-        :($funcname($(funcargs...))),
-    )
-    return esc(Expr(:block, func1, ex))
+    fname, fargs = _parsefunc(ex)
+    adapter = :(Base.@propagate_inbounds $fname(args::NamedTuple) = $fname($(fargs...)))
+    return esc(Expr(:block, adapter, ex))
 end
 
+"""
+    @ufunc ex
+
+Define a "update" function with an "adapter" methods used to parse args from model.
+More about "update" functions, see [`Reaction`](@ref).
+
+For function definition:
+```julia
+@ufunc Base.@propagate_inbounds growth_u!(ind::CartesianIndex{1}, x) = x[ind] += 1
+```
+This macro creates two methods, an "adapter" method
+```julia
+growth_u!(ind, args::NamedTuple) = growth_u(ind, args.x)
+```
+and the origin method
+```julia
+Base.@propagate_inbounds growth_u!(ind::CartesianIndex{1}, x) = x[ind] += 1
+```
+
+!!! info
+    For function definition with other macros, put those macros after this macro.
+
+!!! warning
+    The argument name `ind` is preserved for index of "reaction".
+    Don't use it as your variable name for other usage
+    and keep it as the first argument.
+"""
 macro ufunc(ex)
-    funcname, funcargs = _parsefunc(ex)
-    func1 = Expr(
-        :(=),
-        :($funcname($(PRESERVED_ARGS...), args::NamedTuple)),
-        :($funcname($(funcargs...))),
+    fname, fargs = _parsefunc(ex)
+    adapter = :(
+        Base.@propagate_inbounds $fname($(PRESERVED_VAR_NAME...), args::NamedTuple) =
+            $fname($(fargs...))
     )
-    return esc(Expr(:block, func1, ex))
+    return esc(Expr(:block, adapter, ex))
 end
 
+"""
+    @reaction name ex
+
+Define a [`Reaction`](@ref) with the given `name` and `ex`.
+
+```julia
+@reaction growth begin
+    r * x # "calculate" expression
+    begin
+        i = ind[1]
+        x[i] += 1 # "update" expression
+    end
+end
+```
+will create a `Reaction` with a "calculation" function:
+```julia
+@cfunc Base.@propagate_inbounds growth_c(r, x) = r * x
+```
+and an "update" function:
+```julia
+@cfunc Base.@propagate_inbounds growth_u!(ind, x) = begin
+    i = ind[1]
+    x[i] += 1
+end
+```
+where arguments of functions were collected from given expression automatically.
+
+!!! note
+    If there are global variables, this macro may can not collect arguments correctly
+    Especially, for higher order functions which accept function as arguments,
+    those functions may also be collect as an arguments.
+    Thus, these variables must be marked as global variables by `global` before use them,
+    even functions.
+
+!!! warning
+    The argument name `ind` is preserved for index of "reaction".
+    Don't use it as your variable name for other usage in "update" expression.
+"""
 macro reaction(name::Symbol, block::Expr)
     if block.head == :block && length(block.args) == 4
         cname = Symbol("$(name)_c")
@@ -29,66 +111,90 @@ macro reaction(name::Symbol, block::Expr)
         cargs = collectargs(cbody)
         uargs = collectargs(ubody)
         return esc(Expr(:block,
-            Expr(:(=), :($cname(args::NamedTuple)), :($cname($(_warparg.(cargs)...)))),
-            Expr(:(=), :($cname($(cargs...))), cbody),
-            Expr(:(=), :($uname($(PRESERVED_ARGS...), args::NamedTuple)), :($uname($(_warparg.(uargs)...)))),
-            Expr(:(=), :($uname($(uargs...))), ubody),
+            :(Base.@propagate_inbounds $cname(args::NamedTuple) =
+                $cname($(_warparg.(cargs)...))),
+            :(Base.@propagate_inbounds $cname($(cargs...)) = $cbody),
+            :(Base.@propagate_inbounds $uname($(PRESERVED_VAR_NAME...), args::NamedTuple) =
+                $uname($(_warparg.(uargs)...))),
+            :(Base.@propagate_inbounds $cname($(uargs...)) = $ubody),
             Expr(:(=), name, :(Reaction($cname, $uname))),
-           ))
+        ))
     else
-        throw(ArgumentError("block"))
+        throw(ArgumentError("can't parse expression"))
     end
 end
 
+# extract name and arguments of given function expression
 function _parsefunc(ex::Expr)
     head = ex.head
-    if head in (:function, :(=), :where)
+    if head in (:function, :(=), :where) # unpack function expression
         return _parsefunc(ex.args[1])
-    elseif head == :call
-        funcname = ex.args[1]
-        funcargs = _parsearg.(@view ex.args[2:end])
-        return funcname, funcargs
+    elseif head == :macrocall # unpack macro expression
+        return _parsefunc(ex.args[end])
+    elseif head == :call # the args of :call expression is the function name and the arguments
+        fname = ex.args[1]
+        fargs = map(_parsearg, ex.args[2:end])
+        return fname, fargs
     else
         error("Unknown expr")
     end
 end
 
+# unpack argument names
 _parsearg(arg::Symbol) = _warparg(arg)
-_parsearg(arg::Expr) = _warparg(arg.args[1])
-
+_parsearg(arg::Expr) = _warparg(arg.args[1]::Symbol)
 function _warparg(sym::Symbol)
-    if sym in PRESERVED_ARGS
+    if sym in PRESERVED_VAR_NAME
         return sym
     else
         return Expr(:., :args, QuoteNode(sym))
     end
 end
 
+# collect arguments from given expression
 collectargs(ex) = collectargs!(Set{Symbol}(), Set{Symbol}(), ex)
 
-collectargs!(syms, _, _) = syms
-function collectargs!(syms, iv, sym::Symbol)
-    if !in(sym, syms) && !in(sym, iv)
-        push!(syms, sym)
+# `args` is a list of symbols will be treat as arguments name
+# `vars` is a list of symbols which are names of internal variable or global variables
+collectargs!(args, _, _) = args # ignore when third argument is neither a symbol nor a expr
+function collectargs!(args, vars, sym::Symbol) # symbols neither in syms or iv will be collected
+    if !in(sym, args) && !in(sym, vars)
+        push!(args, sym)
     end
-    return syms
+    return args
 end
-function collectargs!(syms, iv, ex::Expr)
+function collectargs!(args, vars, _ex::Expr)
+    ex = shortdef(_ex) # force convert function definition to short form
     head = ex.head
-    if head == :call # Callable will not be treat as a args
-        args = @view ex.args[2:end]
-    elseif head == :(=) && # assignment to one or multi new symbol
-        (arg = ex.args[1]; (arg isa Symbol || (arg isa Expr && arg.head == :tuple)))
-        collectargs!(syms, iv, ex.args[2]) # must collect syms firstly #2
-        collectargs!(iv, syms, ex.args[1]) # collect internal variables
-        return syms
-    elseif head == :.    # getproperty
-        return collectargs!(syms, iv, ex.args[1])
-    else
-        args = ex.args
+    if head == :(=) # assignment or function definition
+        arg1 = ex.args[1]
+        if (arg1 isa Symbol || (arg1 isa Expr && arg1.head == :tuple)) # assignment to one or multi new symbol
+            collectargs!(args, vars, ex.args[2]) # must collect exprs right of equal firstly #2
+            collectargs!(vars, args, ex.args[1]) # collect internal variables
+            return args
+        elseif arg1.head == :call # local function definition as short form
+            push!(vars, arg1.args[1]) # local function name will be internal variable
+            func_args = Set{Symbol}() # local function arguments
+            collectargs!(func_args, Set{Symbol}(), arg1) # collect local function arguments
+            collectargs!(args, union(vars, func_args), arg1) # collect variables used in local function
+            return args
+        end
+    elseif head == :-> # anonymous function
+        func_args = Set{Symbol}() # anonymous function arguments
+        collectargs!(func_args, Set{Symbol}(), arg1) # collect function arguments
+        collectargs!(args, union(vars, func_args), arg1) # collect variables used in anonymous function
+        return args
+    elseif head == :. # for x.y only collect x, y will be ignore
+        return collectargs!(args, vars, ex.args[1])
+    elseif head == :global # global variables
+        return union!(vars, ex.args)
+    elseif head in (:call, :macrocall) # function and macro will not be treat as a args
+        exs = @view ex.args[2:end]
+    else # in other cases, collect all arguments
+        exs = ex.args
     end
-    for arg in args
-        collectargs!(syms, iv, arg)
+    for exi in exs
+        collectargs!(args, vars, exi)
     end
-    return syms
+    return args
 end

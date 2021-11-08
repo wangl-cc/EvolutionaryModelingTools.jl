@@ -182,13 +182,13 @@ function collectargs!(args, vars, _ex::Expr)
             push!(vars, arg1.args[1]) # local function name will be internal variable
             func_args = Set{Symbol}() # local function arguments
             collectargs!(func_args, Set{Symbol}(), arg1) # collect local function arguments
-            collectargs!(args, union(vars, func_args), arg1) # collect variables used in local function
+            collectargs!(args, union(vars, func_args), ex.args[2]) # collect variables used in local function
             return args
         end
     elseif head == :-> # anonymous function
         func_args = Set{Symbol}() # anonymous function arguments
-        collectargs!(func_args, Set{Symbol}(), arg1) # collect function arguments
-        collectargs!(args, union(vars, func_args), arg1) # collect variables used in anonymous function
+        collectargs!(func_args, Set{Symbol}(), ex.args[1]) # collect function arguments
+        collectargs!(args, union(vars, func_args), ex.args[2]) # collect variables used in anonymous function
         return args
     elseif head == :. # for x.y only collect x, y will be ignore
         return collectargs!(args, vars, ex.args[1])

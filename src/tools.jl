@@ -1,10 +1,14 @@
+# TODO: parse expressions with MacroTools
 const PRESERVED_VAR_NAME = [:ind]
 
 """
     @cfunc ex
 
 Define a "calculation" function with an "adapter" methods used to parse args from model.
-More about "calculate" functions, see [`Reaction`](@ref).
+"calculate" functions take arguments from system state
+and calculate "rate"s determining the probability weight of the reaction be selected.
+
+# Example
 
 For function definition:
 ```julia
@@ -32,7 +36,9 @@ end
     @ufunc ex
 
 Define a "update" function with an "adapter" methods used to parse args from model.
-More about "update" functions, see [`Reaction`](@ref).
+"update" functions take arguments from system state and update system state.
+
+# Example
 
 For function definition:
 ```julia

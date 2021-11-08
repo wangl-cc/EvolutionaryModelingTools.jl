@@ -1,3 +1,4 @@
-# GillespieTools
+# EvolutionaryModelingTools
 
-An implementation of Gillespie's direct method.
+This package provides an easy way to build evolutionary biology models
+and simulate them by Gillespie's direct method algorithm.

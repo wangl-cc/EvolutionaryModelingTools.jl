@@ -1,0 +1,18 @@
+{
+  "[julia]": {
+    "editor.rulers": [92],
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.defaultFormatter": "singularitti.vscode-julia-formatter",
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "files.trimTrailingWhitespace": true
+  },
+  "juliaFormatter.style": "default",
+  "juliaFormatter.alwaysForIn": true,
+  "juliaFormatter.removeExtraNewlines": true,
+  "juliaFormatter.whitespaceInKwargs": false,
+  "juliaFormatter.formatDocstrings": true,
+  "juliaFormatter.alignConditional": true
+}

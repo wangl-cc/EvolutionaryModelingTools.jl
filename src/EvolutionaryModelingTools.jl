@@ -1,10 +1,11 @@
-module GillespieTools
+module EvolutionaryModelingTools
 
 using RecordedArrays
 using Random
+using MacroTools
 
 export @cfunc, @ufunc, @reaction
-export Reaction, Model, gillespie, gillespie!
+export Reaction, gillespie, gillespie!
 
 include("tools.jl")
 include("sample.jl")

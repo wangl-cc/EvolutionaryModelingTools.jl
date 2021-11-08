@@ -1,73 +1,104 @@
 using RecordedArrays: AbstractClock
 
+"""
+    Reaction{C,U}
+
+Contain a "calculate" function and an "update" function.
+The "calculate" function calculates the a "rate" of reaction with the system state,
+which determines the probability weight of the reaction be selected,
+and the "update" function updates the system state,
+when this reaction were selected randomly.
+"""
 struct Reaction{C,U}
-    c::C # function to calculate a
+    c::C # function to calculate "rate"
     u::U # function to update state
 end
 
-struct Model{G<:AbstractRNG,C<:AbstractClock,P<:NamedTuple,R<:Tuple}
-    rng::G # rng
-    c::C   # clock
-    ps::P  # params
-    rs::R  # reactions
-end
-
-struct SSAResults{T}
-    ps::T
-    state::Symbol
-end
-
-# type stable map for tuple
+# generated type stable map for tuple,
+# Base.map for large Tuple is not type stable
+# however, this package must process large Tuples
 @generated function gmap(f, tp::Tuple)
-    FTs = tp.parameters
-    FN  = length(FTs)
-    return Expr(:tuple, (:(f(tp[$i])) for i in 1:FN)...)
+    N  = length(tp.parameters)
+    return Expr(:tuple, (:(f(tp[$i])) for i in 1:N)...)
 end
 
+# apply the given reaction to update system state
 # generate if-elseif branch for each reaction for type stable code
-@generated function applyreaction(rng, rs, ps, as, as_sum, ind)
-    RTs = rs.parameters
-    RN  = length(RTs)
-    ex = Expr(:elseif, :(ind==$RN), quote
-            (rs[$RN].u)(sample(rng, as[$RN], as_sum[$RN]), ps); nothing
-        end)
-    for i in RN-1:-1:2
+@generated function applyreaction(rs, ps, as, acc, ind, rn)
+    N  = length(rs.parameters)  # number of reactions
+    ex = Expr(:elseif, :(ind==$N), quote
+                (rs[$N].u)(sample(as[$N], rn - acc[$(N-1)]), ps); nothing
+            end
+        ) # last elseif block with the last reaction
+    for i in N-1:-1:2
         ex = Expr(:elseif, :(ind==$i), quote
-                (rs[$i].u)(sample(rng, as[$i], as_sum[$i]), ps); nothing
-            end, ex)
+                    (rs[$i].u)(sample(as[$i], rn - acc[$(i-1)]), ps); nothing
+                end,
+                ex
+            ) # append elseif block form last to the second
     end
     return Expr(:if, :(ind==1), quote
-            (rs[1].u)(sample(rng, as[1], as_sum[1]), ps); nothing
-        end, ex)
+                (rs[1].u)(sample(as[1], rn), ps); nothing
+            end,
+            ex
+        ) # append if block at first
 end
 
-function gillespie!(rng::AbstractRNG, c::AbstractClock, ps::NamedTuple, rs::Tuple)
-    term_state = :finnish
+
+"""
+    gillespie!(hook!, rng::AbstractRNG, c::AbstractClock, ps::NamedTuple, rs::Tuple)
+
+Simulate the system using the Gillespie algorithm with the given parameters,
+and return the terminate state `:finnish`, `:break` or any other state returns by the `hook!`.
+The clock `c` and parameters `ps` will be updated during the simulation.
+
+# Arguments
+
+- `hook!`: a function with similar arguments to ["update" functions](@ref @ufunc)
+   and recommended to created with [`@ufunc`](@ref) macro;
+   unlike "update" functions, `hook` will be called after each reaction
+   and should return a terminate state used to terminate the simulation if it is not `:finnish`.
+- `rng`: a random number generator for generate random numbers;
+- `c`: a clock recording time, which must be the reference clock of recorded variables in `ps`;
+- `ps`: a NamedTuple contains state, parameters even args used by `hook!` of the system;
+- `rs`: a tuple contains reactions, all parameters required by reactions must be in `ps` with same name.
+"""
+function gillespie!(hook!, rng::AbstractRNG, c::AbstractClock, ps::NamedTuple, rs::Tuple)
+    term_state = :finnish # terminate state
     for _ in c
-        as = gmap(r -> (r.c)(ps), rs)
-        as_sum = gmap(sum, as)
-        as_sum_sum = sum(as_sum)
-        if iszero(as_sum_sum)
-            term_state = :break
-            break
+        as = gmap(r -> (r.c)(ps), rs)   # calculate "rate" for each reaction
+        as_sum = gmap(sum, as)          # sum of "rate" for each reaction
+        as_sum_acc = sum(as_sum)        # accumulate of the sum of "rate" for all reactions
+        as_sum_sum = as_sum_acc[end]    # sum of "rate" for all reactions
+        if iszero(as_sum_sum)           # if all "rate" are zero
+            term_state = :break         # mark terminate state as break
+            break                       # break the loop
         end
-        τ = -log(rand(rng)) / as_sum_sum
-        increase!(c, τ)
-        ind = sample(rng, as_sum, as_sum_sum)::Int
-        applyreaction(rng, rs, ps, as, as_sum, ind)
+        τ = -log(rand(rng)) / as_sum_sum # calculate τ
+        increase!(c, τ) # increase clock time
+        rn = rand(rng) * as_sum_sum # generate random number, use this rand number twice is OK
+        ind = _sample(as_sum, rn)::Int # sample reaction index, use _sample instead of sample to return Int
+        applyreaction(rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
+        term_state = hook!(ind, ps) # call hook function
+        term_state == :finnish || break # break if state is not :finnish
     end
     return term_state
 end
 
-function gillespie(rng::AbstractRNG, c::AbstractClock, ps::NamedTuple, rs::Tuple)
-    c = deepcopy(c)
-    ps_copy = map(p -> _copy_ps(c, p), ps)
-    term_state = gillespie!(rng, c, ps_copy, rs)
-    return SSAResults(ps_copy, term_state)
+"""
+    gillespie([hook!, rng::AbstractRNG,] c::AbstractClock, ps::NamedTuple, rs::Tuple)
+
+The same as [`gillespie!`](@ref) but copy the clock `c` and parameters `ps`
+and return a tuple of updated `ps` and terminate state.
+"""
+function gillespie(hook!, rng::AbstractRNG, c::AbstractClock, ps::NamedTuple, rs::Tuple)
+    c′, ps′ = deepcopy((c, ps)) # deepcopy is needed to avoid mutation of ps
+    term_state = gillespie!(hook!, rng, c′, ps′, rs)
+    return ps, term_state
 end
 gillespie(c::AbstractClock, ps::NamedTuple, rs::Tuple) =
-    gillespie(Random.GLOBAL_RNG, c, ps, rs)
-
-_copy_ps(::AbstractClock, x) = copy(x)
-_copy_ps(c::AbstractClock, x::RecordedArrays.AbstractRArray) =
-    setclock(x, c)
+    gillespie((_...) -> :finnish, Random.GLOBAL_RNG, c, ps, rs)
+gillespie(rng::AbstractRNG, c::AbstractClock,  ps::NamedTuple, rs::Tuple) =
+    gillespie((_...) -> :finnish, rng, c, ps, rs)
+gillespie(hook!, c::AbstractClock, ps::NamedTuple, rs::Tuple) =
+    gillespie(hook!, Random.GLOBAL_RNG, c, ps, rs)

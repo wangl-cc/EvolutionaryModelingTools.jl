@@ -1,5 +1,5 @@
 """
-    sample(A::AbstractArray{<:Real,N}, rn::Real)
+    sample(A::AbstractArray{<:Real,N}, rn::Real) -> CartesianIndex{N}
 
 Select a cartesian index of given weight array `A` and random number `rn`,
 where `A` should be an `AbstractArray` with element type of `Real`.
@@ -27,9 +27,9 @@ CartesianIndex(2, 2)
 """
 sample
 # sample for number
-sample(::Real, ::Real) = CartesianIndex(1)
+sample(::Real, ::Real) = CartesianIndex()
 # sample for scalar
-sample(::AbstractArray{<:Real,0}, ::Real) = CartesianIndex(1)
+sample(::AbstractArray{<:Real,0}, ::Real) = CartesianIndex()
 # sample for vector
 sample(V::AbstractVector{<:Real}, rn::Real) = CartesianIndex(_sample(V, rn))
 # sample for multi-dimensional array

@@ -44,7 +44,7 @@ end
 
 
 """
-    gillespie!(hook!, rng::AbstractRNG, c::DiscreteClock, ps::NamedTuple, rs::Tuple)
+    gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple, rs::Tuple)
 
 Simulate the system using the Gillespie algorithm with the given parameters,
 and return the terminate state `:finnish`, `:break` or any other state returns by the `hook!`.
@@ -52,8 +52,8 @@ The clock `c` and parameters `ps` will be updated during the simulation.
 
 # Arguments
 
-- `hook!`: a function with similar arguments to ["update" functions](@ref @ufunc)
-   and recommended to created with [`@ufunc`](@ref) macro;
+- `hook!`: a function with similar arguments to ["update" functions](@ref @ufunc),
+   and it's recommended to create `hook!` with [`@ufunc`](@ref) macro;
    unlike "update" functions, `hook` will be called after each reaction
    and should return a terminate state used to terminate the simulation if it is not `:finnish`.
 - `rng`: a random number generator for generate random numbers;
@@ -61,7 +61,7 @@ The clock `c` and parameters `ps` will be updated during the simulation.
 - `ps`: a NamedTuple contains state, parameters even args used by `hook!` of the system;
 - `rs`: a tuple contains reactions, all parameters required by reactions must be in `ps` with same name.
 """
-function gillespie!(hook!, rng::AbstractRNG, c::DiscreteClock, ps::NamedTuple, rs::Tuple)
+function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple, rs::Tuple)
     term_state = :finnish # terminate state
     for t in c
         as = gmap(r -> (r.c)(t, ps), rs)   # calculate "rate" for each reaction
@@ -96,7 +96,7 @@ and return a tuple of updated `ps` and terminate state.
    unlike "update" functions, `hook` will be called after each reaction
    and should return a terminate state used to terminate the simulation if it is not `:finnish`.
 - `rng`: a random number generator for generate random numbers;
-- `c`: a `DiscreteClock`, a end time or a tuple of a begin and a end time;
+- `c`: a `ContinuousClock`, a end time or a tuple of a begin and a end time;
 - `ps`: a NamedTuple contains state, parameters even args used by `hook!` of the system;
 - `rs`: a tuple contains reactions, all parameters required by reactions must be in `ps` with same name.
 """
@@ -112,6 +112,6 @@ gillespie(rng::AbstractRNG, c,  ps::NamedTuple, rs::Tuple) =
 gillespie(hook!, c, ps::NamedTuple, rs::Tuple) =
     gillespie(hook!, Random.GLOBAL_RNG, c, ps, rs)
 
-_copy_args(c::DiscreteClock, ps) = deepcopy((c, ps))
-_copy_args(c::Real, ps) = DiscreteClock(c), deepcopy(ps)
-_copy_args((s, e)::Tuple{Real,Real}, ps) = DiscreteClock(e, s), deepcopy(ps)
+_copy_args(c::ContinuousClock, ps) = deepcopy((c, ps))
+_copy_args(c::Real, ps) = ContinuousClock(c), deepcopy(ps)
+_copy_args((s, e)::Tuple{Real,Real}, ps) = ContinuousClock(e, s), deepcopy(ps)

@@ -167,7 +167,7 @@ collectargs(ex) = collectargs!(Set{Symbol}(), Set{Symbol}(), ex)
 # `vars` is a list of symbols which are names of internal variable or global variables
 collectargs!(args, _, _) = args # ignore when third argument is neither a symbol nor a expr
 function collectargs!(args, vars, sym::Symbol) # symbols neither in syms or iv will be collected
-    if !in(sym, args) && !in(sym, vars)
+    if !in(sym, args) && !in(sym, vars) && sym != :(:)
         push!(args, sym)
     end
     return args
@@ -187,6 +187,10 @@ function collectargs!(args, vars, _ex::Expr)
             collectargs!(func_args, Set{Symbol}(), arg1) # collect local function arguments
             collectargs!(args, union(vars, func_args), ex.args[2]) # collect variables used in local function
             return args
+        else
+            collectargs!(args, vars, ex.args[1]) # collect left side of equal
+            collectargs!(args, vars, ex.args[2]) # collect right side of equal
+            return args
         end
     elseif head == :-> # anonymous function
         func_args = Set{Symbol}() # anonymous function arguments
@@ -198,12 +202,9 @@ function collectargs!(args, vars, _ex::Expr)
     elseif head == :global # global variables
         return union!(vars, ex.args)
     elseif head in (:call, :macrocall) # function and macro will not be treat as a args
-        exs = @view ex.args[2:end]
+        foreach(arg -> collectargs!(args, vars, arg), ex.args[2:end])
     else # in other cases, collect all arguments
-        exs = ex.args
-    end
-    for exi in exs
-        collectargs!(args, vars, exi)
+        foreach(arg -> collectargs!(args, vars, arg), ex.args)
     end
     return args
 end

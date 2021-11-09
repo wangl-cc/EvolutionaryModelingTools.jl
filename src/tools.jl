@@ -1,5 +1,4 @@
 # TODO: parse expressions with MacroTools
-const PRESERVED_VAR_NAME = [:ind]
 
 """
     @cfunc ex
@@ -25,10 +24,14 @@ and the origin method
 
 !!! info
     For function definition with other macros, put those macros after this macro.
+
+!!! warning
+    The argument name `t` is reserved for time.
+    Don't use those variable names for other usage
 """
 macro cfunc(ex)
-    fname, fargs = _parsefunc(ex)
-    adapter = :(Base.@propagate_inbounds $fname(args::NamedTuple) = $fname($(fargs...)))
+    fname, fargs = _parsefunc(ex, (:t,))
+    adapter = :(Base.@propagate_inbounds $fname(t, args::NamedTuple) = $fname($(fargs...)))
     return esc(Expr(:block, adapter, ex))
 end
 
@@ -57,14 +60,14 @@ Base.@propagate_inbounds growth_u!(ind::CartesianIndex{1}, x) = x[ind] += 1
     For function definition with other macros, put those macros after this macro.
 
 !!! warning
-    The argument name `ind` is preserved for index of "reaction".
-    Don't use it as your variable name for other usage
-    and keep it as the first argument.
+    The argument name `t` is reserved for time,
+    and the argument name `ind` is preserved for index of "reaction".
+    Don't use those variable names for other usage
 """
 macro ufunc(ex)
-    fname, fargs = _parsefunc(ex)
+    fname, fargs = _parsefunc(ex, (:t, :ind))
     adapter = :(
-        Base.@propagate_inbounds $fname($(PRESERVED_VAR_NAME...), args::NamedTuple) =
+        Base.@propagate_inbounds $fname(t, ind, args::NamedTuple) =
             $fname($(fargs...))
     )
     return esc(Expr(:block, adapter, ex))
@@ -117,10 +120,10 @@ macro reaction(name::Symbol, block::Expr)
         cargs = collectargs(cbody)
         uargs = collectargs(ubody)
         return esc(Expr(:block,
-            :(Base.@propagate_inbounds $cname(args::NamedTuple) =
+            :(Base.@propagate_inbounds $cname(t, args::NamedTuple) =
                 $cname($(_warparg.(cargs)...))),
             :(Base.@propagate_inbounds $cname($(cargs...)) = $cbody),
-            :(Base.@propagate_inbounds $uname($(PRESERVED_VAR_NAME...), args::NamedTuple) =
+            :(Base.@propagate_inbounds $uname(t, ind, args::NamedTuple) =
                 $uname($(_warparg.(uargs)...))),
             :(Base.@propagate_inbounds $cname($(uargs...)) = $ubody),
             Expr(:(=), name, :(Reaction($cname, $uname))),
@@ -131,15 +134,15 @@ macro reaction(name::Symbol, block::Expr)
 end
 
 # extract name and arguments of given function expression
-function _parsefunc(ex::Expr)
+function _parsefunc(ex::Expr, preserve)
     head = ex.head
     if head in (:function, :(=), :where) # unpack function expression
-        return _parsefunc(ex.args[1])
+        return _parsefunc(ex.args[1], preserve)
     elseif head == :macrocall # unpack macro expression
-        return _parsefunc(ex.args[end])
+        return _parsefunc(ex.args[end], preserve)
     elseif head == :call # the args of :call expression is the function name and the arguments
         fname = ex.args[1]
-        fargs = map(_parsearg, ex.args[2:end])
+        fargs = map(arg -> _parsearg(arg, preserve), ex.args[2:end])
         return fname, fargs
     else
         error("Unknown expr")
@@ -147,10 +150,10 @@ function _parsefunc(ex::Expr)
 end
 
 # unpack argument names
-_parsearg(arg::Symbol) = _warparg(arg)
-_parsearg(arg::Expr) = _warparg(arg.args[1]::Symbol)
-function _warparg(sym::Symbol)
-    if sym in PRESERVED_VAR_NAME
+_parsearg(arg::Symbol, preserve) = _warparg(arg, preserve)
+_parsearg(arg::Expr, preserve) = _warparg(arg.args[1]::Symbol, preserve)
+function _warparg(sym::Symbol, preserve)
+    if sym in preserve
         return sym
     else
         return Expr(:., :args, QuoteNode(sym))

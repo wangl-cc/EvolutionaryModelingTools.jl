@@ -22,21 +22,21 @@ end
 
 # apply the given reaction to update system state
 # generate if-elseif branch for each reaction for type stable code
-@generated function applyreaction(rs, ps, as, acc, ind, rn)
+@generated function applyreaction(t, rs, ps, as, acc, ind, rn)
     N  = length(rs.parameters)  # number of reactions
     ex = Expr(:elseif, :(ind==$N), quote
-                (rs[$N].u)(sample(as[$N], rn - acc[$(N-1)]), ps); nothing
+                (rs[$N].u)(t, sample(as[$N], rn - acc[$(N-1)]), ps); nothing
             end
         ) # last elseif block with the last reaction
     for i in N-1:-1:2
         ex = Expr(:elseif, :(ind==$i), quote
-                    (rs[$i].u)(sample(as[$i], rn - acc[$(i-1)]), ps); nothing
+                    (rs[$i].u)(t, sample(as[$i], rn - acc[$(i-1)]), ps); nothing
                 end,
                 ex
             ) # append elseif block form last to the second
     end
     return Expr(:if, :(ind==1), quote
-                (rs[1].u)(sample(as[1], rn), ps); nothing
+                (rs[1].u)(t, sample(as[1], rn), ps); nothing
             end,
             ex
         ) # append if block at first
@@ -63,8 +63,8 @@ The clock `c` and parameters `ps` will be updated during the simulation.
 """
 function gillespie!(hook!, rng::AbstractRNG, c::DiscreteClock, ps::NamedTuple, rs::Tuple)
     term_state = :finnish # terminate state
-    for _ in c
-        as = gmap(r -> (r.c)(ps), rs)   # calculate "rate" for each reaction
+    for t in c
+        as = gmap(r -> (r.c)(t, ps), rs)   # calculate "rate" for each reaction
         as_sum = gmap(sum, as)          # sum of "rate" for each reaction
         as_sum_acc = sum(as_sum)        # accumulate of the sum of "rate" for all reactions
         as_sum_sum = as_sum_acc[end]    # sum of "rate" for all reactions
@@ -73,11 +73,11 @@ function gillespie!(hook!, rng::AbstractRNG, c::DiscreteClock, ps::NamedTuple, r
             break                       # break the loop
         end
         τ = -log(rand(rng)) / as_sum_sum # calculate τ
-        increase!(c, τ) # increase clock time
+        t′ = increase!(c, τ) # increase clock time
         rn = rand(rng) * as_sum_sum # generate random number, use this rand number twice is OK
         ind = _sample(as_sum, rn)::Int # sample reaction index, use _sample instead of sample to return Int
-        applyreaction(rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
-        term_state = hook!(ind, ps) # call hook function
+        applyreaction(t′, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
+        term_state = hook!(t′, ind, ps) # call hook function
         term_state == :finnish || break # break if state is not :finnish
     end
     return term_state

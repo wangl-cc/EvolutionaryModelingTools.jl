@@ -121,10 +121,10 @@ macro reaction(name::Symbol, block::Expr)
         uargs = collectargs(ubody)
         return esc(Expr(:block,
             :(Base.@propagate_inbounds $cname(t, args::NamedTuple) =
-                $cname($(_warparg.(cargs)...))),
+                $cname($((_warparg(arg, (:t,)) for arg in cargs)...))),
             :(Base.@propagate_inbounds $cname($(cargs...)) = $cbody),
             :(Base.@propagate_inbounds $uname(t, ind, args::NamedTuple) =
-                $uname($(_warparg.(uargs)...))),
+                $uname($((_warparg(arg, (:t, :ind)) for arg in uargs)...))),
             :(Base.@propagate_inbounds $cname($(uargs...)) = $ubody),
             Expr(:(=), name, :(Reaction($cname, $uname))),
         ))

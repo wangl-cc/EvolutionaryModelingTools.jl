@@ -103,7 +103,7 @@ and return a tuple of updated `ps` and terminate state.
 function gillespie(hook!, rng::AbstractRNG, c, ps::NamedTuple, rs::Tuple)
     c′, ps′ = _copy_args(c, ps) # copy args to avoid mutation of ps
     term_state = gillespie!(hook!, rng, c′, ps′, rs)
-    return ps, term_state
+    return ps′, term_state
 end
 gillespie(c, ps::NamedTuple, rs::Tuple) =
     gillespie((_...) -> :finnish, Random.GLOBAL_RNG, c, ps, rs)

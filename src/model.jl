@@ -62,7 +62,11 @@ end
     gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple, rs::Tuple)
 
 Simulate the system using the Gillespie algorithm with the given parameters,
-and return the terminate state `:finnish`, `:break` or any other state returns by the `hook!`.
+and return the terminate state `:finnish`, `:zero` or any other state returns by the `hook!`.
+The terminate state `:finnish` means that simulation reach to the end time,
+and `:zero` means the simulation break because the total "reaction rate" is zero,
+besides, `hook!` should return a symbol terminate state like `:break`.
+if the return value of `hook!` is not `:finnish`, the simulation will be terminated.
 The clock `c` and parameters `ps` will be updated during the simulation.
 
 # Arguments
@@ -84,7 +88,7 @@ function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple,
         as_sum_acc = gaccumulate(as_sum)   # accumulate of the sum of "rate" for all reactions
         as_sum_sum = as_sum_acc[end]       # sum of "rate" for all reactions
         if iszero(as_sum_sum)              # if all "rate" are zero
-            term_state = :break            # mark terminate state as break
+            term_state = :zero             # mark terminate state as break
             break                          # break the loop
         end
         τ = -log(rand(rng)) / as_sum_sum   # calculate τ
@@ -103,6 +107,7 @@ end
 
 Simulate the system using the Gillespie algorithm with the given parameters,
 and return a tuple of updated `ps` and terminate state.
+More about terminate state, see [`gillespie!`](@ref).
 
 # Arguments
 

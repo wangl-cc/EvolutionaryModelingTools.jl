@@ -102,10 +102,13 @@ where arguments of functions were collected from given expression automatically.
 
 !!! note
     If there are global variables, this macro may can not collect arguments correctly
-    Especially, for higher order functions which accept function as arguments,
-    those functions may also be collect as an arguments.
+    Especially, for functions which accept function and types as arguments,
+    those functions and types may also be collect as an arguments.
     Thus, these variables must be marked as global variables by `global` before use them,
-    even functions.
+    even functions and types.
+    Besides, type annotation expressions like `x::Vector{Int}`,
+    types `Vector` and `Int` will not be collected.
+    Avoid to defined your reaction with a type arguments for type annotation.
 
 !!! warning
     The argument name `ind` is preserved for index of "reaction".
@@ -201,6 +204,8 @@ function collectargs!(args, vars, _ex::Expr)
         return collectargs!(args, vars, ex.args[1])
     elseif head == :global # global variables
         return union!(vars, ex.args)
+    elseif head == :(::) # type annotation
+        return collectargs!(args, vars, ex.args[1]) # collect left side of :: but ignore right side
     elseif head in (:call, :macrocall) # function and macro will not be treat as a args
         foreach(arg -> collectargs!(args, vars, arg), ex.args[2:end])
     else # in other cases, collect all arguments

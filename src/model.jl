@@ -37,7 +37,7 @@ end
 # apply the given reaction to update system state
 # generate if-elseif branch for each reaction for type stable code
 # as[i], rs[i] are type unstable without @generated
-@generated function applyreaction(rng, t, rs, ps, as, acc, ind, rn)
+@generated function applyreaction(rng::AbstractRNG, t, rs, ps, as, acc, ind, rn)
     N  = length(rs.parameters)  # number of reactions
     ex = Expr(:elseif, :(ind==$N), quote
                 (rs[$N].u)(rng, t, sample(as[$N], rn - acc[$(N-1)]), ps); nothing
@@ -92,7 +92,7 @@ function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple,
         rn = rand(rng) * as_sum_sum # generate random number, use this rand number twice is OK
         ind = searchsortedfirst(as_sum_acc, rn)::Int # sample reaction index, use _sample instead of sample to return Int
         applyreaction(rng, t′, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
-        term_state = hook!(t′, ind, ps) # call hook function
+        term_state = hook!(rng, t′, ind, ps) # call hook function
         term_state == :finnish || break # break if state is not :finnish
     end
     return term_state

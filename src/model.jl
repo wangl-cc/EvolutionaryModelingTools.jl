@@ -65,12 +65,12 @@ function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple,
     term_state = :finnish # terminate state
     for t in c
         as = gmap(r -> (r.c)(t, ps), rs)   # calculate "rate" for each reaction
-        as_sum = gmap(sum, as)          # sum of "rate" for each reaction
-        as_sum_acc = sum(as_sum)        # accumulate of the sum of "rate" for all reactions
-        as_sum_sum = as_sum_acc[end]    # sum of "rate" for all reactions
-        if iszero(as_sum_sum)           # if all "rate" are zero
-            term_state = :break         # mark terminate state as break
-            break                       # break the loop
+        as_sum = gmap(sum, as)             # sum of "rate" for each reaction
+        as_sum_acc = accumulate(+, as_sum) # accumulate of the sum of "rate" for all reactions
+        as_sum_sum = as_sum_acc[end]       # sum of "rate" for all reactions
+        if iszero(as_sum_sum)              # if all "rate" are zero
+            term_state = :break            # mark terminate state as break
+            break                          # break the loop
         end
         τ = -log(rand(rng)) / as_sum_sum # calculate τ
         t′ = increase!(c, τ) # increase clock time

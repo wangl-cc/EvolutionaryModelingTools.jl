@@ -125,7 +125,7 @@ macro reaction(name::Symbol, block::Expr)
             :(Base.@propagate_inbounds $cname($(cargs...)) = $cbody),
             :(Base.@propagate_inbounds $uname(t, ind, args::NamedTuple) =
                 $uname($((_warparg(arg, (:t, :ind)) for arg in uargs)...))),
-            :(Base.@propagate_inbounds $cname($(uargs...)) = $ubody),
+            :(Base.@propagate_inbounds $uname($(uargs...)) = $ubody),
             Expr(:(=), name, :(Reaction($cname, $uname))),
         ))
     else

@@ -20,24 +20,38 @@ end
     return Expr(:tuple, (:(f(tp[$i])) for i in 1:N)...)
 end
 
+# generated type stable accumulate for tuple
+# Base.accumulate for tuple return a tuple
+# this method return a Vector
+@generated function gaccumulate(tp::Tuple)
+    ret_type = promote_type(tp.parameters...)
+    N  = length(tp.parameters)
+    return quote
+        ret = Vector{$ret_type}(undef, $N)
+        ret[1] = tp[1]
+        $((:(@inbounds ret[$i] = ret[$(i-1)] + tp[$i]) for i in 2:N)...)
+        return ret
+    end
+end
+
 # apply the given reaction to update system state
 # generate if-elseif branch for each reaction for type stable code
 # as[i], rs[i] are type unstable without @generated
-@generated function applyreaction(t, rs, ps, as, acc, ind, rn)
+@generated function applyreaction(rng, t, rs, ps, as, acc, ind, rn)
     N  = length(rs.parameters)  # number of reactions
     ex = Expr(:elseif, :(ind==$N), quote
-                (rs[$N].u)(t, sample(as[$N], rn - acc[$(N-1)]), ps); nothing
+                (rs[$N].u)(rng, t, sample(as[$N], rn - acc[$(N-1)]), ps); nothing
             end
         ) # last elseif block with the last reaction
     for i in N-1:-1:2
         ex = Expr(:elseif, :(ind==$i), quote
-                    (rs[$i].u)(t, sample(as[$i], rn - acc[$(i-1)]), ps); nothing
+                    (rs[$i].u)(rng, t, sample(as[$i], rn - acc[$(i-1)]), ps); nothing
                 end,
                 ex
             ) # append elseif block form last to the second
     end
     return Expr(:if, :(ind==1), quote
-                (rs[1].u)(t, sample(as[1], rn), ps); nothing
+                (rs[1].u)(rng, t, sample(as[1], rn), ps); nothing
             end,
             ex
         ) # append if block at first
@@ -67,7 +81,7 @@ function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple,
     for t in c
         as = gmap(r -> (r.c)(t, ps), rs)   # calculate "rate" for each reaction
         as_sum = gmap(sum, as)             # sum of "rate" for each reaction
-        as_sum_acc = accumulate(+, as_sum) # accumulate of the sum of "rate" for all reactions
+        as_sum_acc = gaccumulate(as_sum)   # accumulate of the sum of "rate" for all reactions
         as_sum_sum = as_sum_acc[end]       # sum of "rate" for all reactions
         if iszero(as_sum_sum)              # if all "rate" are zero
             term_state = :break            # mark terminate state as break
@@ -77,7 +91,7 @@ function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple,
         t′ = increase!(c, τ) # increase clock time
         rn = rand(rng) * as_sum_sum # generate random number, use this rand number twice is OK
         ind = searchsortedfirst(as_sum_acc, rn)::Int # sample reaction index, use _sample instead of sample to return Int
-        applyreaction(t′, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
+        applyreaction(rng, t′, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
         term_state = hook!(t′, ind, ps) # call hook function
         term_state == :finnish || break # break if state is not :finnish
     end

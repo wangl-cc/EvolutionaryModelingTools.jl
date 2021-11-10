@@ -61,13 +61,14 @@ Base.@propagate_inbounds growth_u!(ind::CartesianIndex{1}, x) = x[ind] += 1
 
 !!! warning
     The argument name `t` is reserved for time,
+    arguments name `rng` is reserved for random number generator,
     and the argument name `ind` is preserved for index of "reaction".
     Don't use those variable names for other usage
 """
 macro ufunc(ex)
-    fname, fargs = _parsefunc(ex, (:t, :ind))
+    fname, fargs = _parsefunc(ex, (:t, :ind, :rng))
     adapter = :(
-        Base.@propagate_inbounds $fname(t, ind, args::NamedTuple) =
+        Base.@propagate_inbounds $fname(rng, t, ind, args::NamedTuple) =
             $fname($(fargs...))
     )
     return esc(Expr(:block, adapter, ex))
@@ -111,8 +112,8 @@ where arguments of functions were collected from given expression automatically.
     Avoid to defined your reaction with a type arguments for type annotation.
 
 !!! warning
-    The argument name `ind` is preserved for index of "reaction".
-    Don't use it as your variable name for other usage in "update" expression.
+    The expression follow the same name preserve rule as `@cfunc` and `@ufunc`,
+    don't use those variable names for other usage.
 """
 macro reaction(name::Symbol, block::Expr)
     if block.head == :block && length(block.args) == 4
@@ -126,8 +127,8 @@ macro reaction(name::Symbol, block::Expr)
             :(Base.@propagate_inbounds $cname(t, args::NamedTuple) =
                 $cname($((_warparg(arg, (:t,)) for arg in cargs)...))),
             :(Base.@propagate_inbounds $cname($(cargs...)) = $cbody),
-            :(Base.@propagate_inbounds $uname(t, ind, args::NamedTuple) =
-                $uname($((_warparg(arg, (:t, :ind)) for arg in uargs)...))),
+            :(Base.@propagate_inbounds $uname(rng, t, ind, args::NamedTuple) =
+                $uname($((_warparg(arg, (:t, :ind, :rng)) for arg in uargs)...))),
             :(Base.@propagate_inbounds $uname($(uargs...)) = $ubody),
             Expr(:(=), name, :(Reaction($cname, $uname))),
         ))

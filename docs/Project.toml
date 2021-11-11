@@ -1,3 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+RecordedArrays = "1040807a-3a2f-4266-b2c1-805b33c7034a"

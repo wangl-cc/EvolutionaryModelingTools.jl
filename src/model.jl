@@ -62,7 +62,8 @@ end
     gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple, rs::Tuple)
 
 Simulate the system using the Gillespie algorithm with the given parameters,
-and return the terminate state `:finnish`, `:zero` or any other state returns by the `hook!`.
+and return a tuple of end time
+and the terminate state `:finnish`, `:zero` or any other state returns by the `hook!`.
 The terminate state `:finnish` means that simulation reach to the end time,
 and `:zero` means the simulation break because the total "reaction rate" is zero,
 besides, `hook!` should return a symbol terminate state like `:break`.
@@ -82,7 +83,8 @@ The clock `c` and parameters `ps` will be updated during the simulation.
 """
 function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple, rs::Tuple)
     term_state = :finnish # terminate state
-    for t in c
+    t = start(c)
+    for _ in c
         as = gmap(r -> (r.c)(t, ps), rs)   # calculate "rate" for each reaction
         as_sum = gmap(sum, as)             # sum of "rate" for each reaction
         as_sum_acc = gaccumulate(as_sum)   # accumulate of the sum of "rate" for all reactions
@@ -92,21 +94,21 @@ function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple,
             break                          # break the loop
         end
         τ = -log(rand(rng)) / as_sum_sum   # calculate τ
-        t′ = increase!(c, τ) # increase clock time
+        t = increase!(c, τ) # increase clock time
         rn = rand(rng) * as_sum_sum # generate random number, use this rand number twice is OK
         ind = searchsortedfirst(as_sum_acc, rn)::Int # sample reaction index, use _sample instead of sample to return Int
-        applyreaction(rng, t′, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
-        term_state = hook!(rng, t′, ind, ps) # call hook function
+        applyreaction(rng, t, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
+        term_state = hook!(rng, t, ind, ps) # call hook function
         term_state == :finnish || break # break if state is not :finnish
     end
-    return term_state
+    return t, term_state
 end
 
 """
     gillespie([hook!, rng::AbstractRNG,] c, ps::NamedTuple, rs::Tuple)
 
 Simulate the system using the Gillespie algorithm with the given parameters,
-and return a tuple of updated `ps` and terminate state.
+and return a tuple of updated `ps`, end time and terminate state.
 More about terminate state, see [`gillespie!`](@ref).
 
 # Arguments
@@ -122,8 +124,8 @@ More about terminate state, see [`gillespie!`](@ref).
 """
 function gillespie(hook!, rng::AbstractRNG, c, ps::NamedTuple, rs::Tuple)
     c′, ps′ = _copy_args(c, ps) # copy args to avoid mutation of ps
-    term_state = gillespie!(hook!, rng, c′, ps′, rs)
-    return ps′, term_state
+    t, term_state = gillespie!(hook!, rng, c′, ps′, rs)
+    return ps′, t, term_state
 end
 gillespie(c, ps::NamedTuple, rs::Tuple) =
     gillespie((_...) -> :finnish, Random.GLOBAL_RNG, c, ps, rs)

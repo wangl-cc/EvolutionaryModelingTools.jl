@@ -80,12 +80,14 @@ Then, you can use `gillespie` to simulate the system:
 
 ```julia
 max_time = 100 # the maximum time of simulation
-gillespie(max_time, reactions, params) # return a tuple of (term_state, params)
+params′, t, term = gillespie(max_time, reactions, params)
 ```
 
-where the `gillespie` function returns the `ps` after the simulation
-and a flag indicate whether the simulation is finished after the maximum time,
-or break before the maximum time.
+where the `gillespie` function returns an tuple `t, ps′, term`
+where `t` is the time when the simulation ends, `params′` is an updated `params`,
+and `term` is a flag indicating
+whether the simulation is finished after the maximum time
+or break with given flag.
 
 **Note**: Changes of the state will not be recorded by default,
 but you can use my another package `RecordedArrays` to record them, like this:

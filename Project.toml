@@ -12,3 +12,9 @@ RecordedArrays = "1040807a-3a2f-4266-b2c1-805b33c7034a"
 MacroTools = "0.5"
 RecordedArrays = "0.4"
 julia = "1.2"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

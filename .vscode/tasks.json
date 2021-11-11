@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "env": {
+      "GKSwstype": "100"
+    }
+  },
+  "tasks": [
+    {
+      "group": "build",
+      "label": "Build documentation",
+      "command": "julia",
+      "args": ["--project=docs", "docs/make.jl"]
+    }
+  ]
+}

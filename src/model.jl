@@ -71,7 +71,7 @@ The clock `c` and parameters `ps` will be updated during the simulation.
 
 # Arguments
 
-- `hook!`: a function with similar arguments to ["update" functions](@ref @ufunc),
+- `hook!`: a function with similar arguments to "update" functions,
    and it's recommended to create `hook!` with [`@ufunc`](@ref) macro;
    unlike "update" functions, `hook` will be called after each reaction
    and should return a terminate state used to terminate the simulation if it is not `:finnish`.
@@ -111,7 +111,7 @@ More about terminate state, see [`gillespie!`](@ref).
 
 # Arguments
 
-- `hook!`: a function with similar arguments to ["update" functions](@ref @ufunc)
+- `hook!`: a function with similar arguments to "update" functions
    and recommended to created with [`@ufunc`](@ref) macro;
    unlike "update" functions, `hook` will be called after each reaction
    and should return a terminate state used to terminate the simulation if it is not `:finnish`.

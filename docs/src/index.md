@@ -1,10 +1,4 @@
-# EvolutionaryModelingTools
-
-[![Build Status](https://github.com/wangl-cc/EvolutionaryModelingTools.jl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/wangl-cc/EvolutionaryModelingTools.jl/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/wangl-cc/EvolutionaryModelingTools.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/wangl-cc/EvolutionaryModelingTools.jl)
-[![GitHub](https://img.shields.io/github/license/wangl-cc/EvolutionaryModelingTools.jl)](https://github.com/wangl-cc/EvolutionaryModelingTools.jl/blob/master/LICENSE)
-[![Docs stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://wangl-cc.github.io/EvolutionaryModelingTools.jl/stable/)
-[![Docs dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://wangl-cc.github.io/EvolutionaryModelingTools.jl/dev/)
+# Introduction
 
 A simple package provides an easy way to build evolutionary biology models
 and simulate them by Gillespie's direct method algorithm.
@@ -103,11 +97,8 @@ S = recorded(DynamicEntry, c, [10]) # create a recorded vector as S
 I = recorded(DynamicEntry, c, fill(0, 1, 1)) # create a recorded matrix as I
 R = recorded(DynamicEntry, c, fill(0, 1, 1)) # create a recorded matrix as R
 params = (β = 0.1, ..., S = S, I = I, R = R) # add new S, I, R to params
-gillespie(c, params, reactions) # run the simulation with new params, must replace the max_time to clock
+gillespie(c, params, reactions) # run the simulation with new params
 ```
 
 More information about `RecordedArrays`, see its
 [documentation](https://wangl-cc.github.io/RecordedArrays.jl/dev).
-
-Examples and references of this package can be found in
-[documentation](https://wangl-cc.github.io/EvolutionaryModelingTools.jl/dev).

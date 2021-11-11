@@ -11,10 +11,11 @@ and simulate them by Gillespie's direct method algorithm.
 
 ## Why?
 
-`DifferentialEquations.jl` is a brilliant suite solving deferential equations,
-including stochastic differential equations, and it is a very good choice.
+[`DifferentialEquations.jl`](https://github.com/SciML/DifferentialEquations.jl)
+is a brilliant suite solving deferential equations,
+including simulating jump process with Gillespie algorithm, and it is a very good choice.
 However, it is not suitable for solving differential equations
-with variable length state,
+with "variable length" state,
 which is the main reason why I created this package.
 
 For example, in a [SIR model](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model),
@@ -29,7 +30,7 @@ by concatenating the state of each component of host `u = vcat(S, vec(I), vec(R)
 where `S` is a vector of length `n` and `I`, `R` are matrixes of size `n × m`.
 However, in evolutionary biology,
 the "mutation" and "extinction" will change the types of "hosts" and "viruses",
-which means the `n` and `m` will change during the evolution,
+which means the `n` and `m` changes during the evolution,
 and the length of the state vector `u` will also change.
 
 ## How to use?

@@ -48,7 +48,7 @@ rs = (growth, death, comp) # define the reactions for the model
 
 # simulate
 Random.seed!(1)
-ps_new, state = gillespie(c, ps, rs)
+ps_new, t, state = gillespie(c, ps, rs)
 
 # plot
 timeseries(ps_new.x;
@@ -135,7 +135,7 @@ rs = (growth, mutation, competition) # define the reactions for the model
 
 # simulate
 Random.seed!(1)
-ps_new, state = gillespie(check_extinction, c, ps, rs)
+ps_new, t, state = gillespie(check_extinction, c, ps, rs)
 
 # plot
 timeseries(ps_new.x;

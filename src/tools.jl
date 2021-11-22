@@ -207,6 +207,9 @@ function collectargs!(args, vars, _ex::Expr)
         return union!(vars, ex.args)
     elseif head == :(::) # type annotation
         return collectargs!(args, vars, ex.args[1]) # collect left side of :: but ignore right side
+    elseif head == :ref # ignore begin and end in reference
+        collectargs!(args, vars, ex.args[1])
+        foreach(arg -> collectargs!(args, TempUnion(vars, (:begin, :end)), arg), ex.args[2:end])
     elseif head in (:call, :macrocall) # function and macro will not be treat as a args
         foreach(arg -> collectargs!(args, vars, arg), ex.args[2:end])
     else # in other cases, collect all arguments
@@ -214,3 +217,12 @@ function collectargs!(args, vars, _ex::Expr)
     end
     return args
 end
+
+# union two collections
+# but push! to the first collection
+struct TempUnion{S, T}
+    s::S
+    t::T
+end
+Base.in(item, s::TempUnion) = (item in s.s) || (item in s.t)
+Base.push!(s::TempUnion, item) = push!(s.s, item)

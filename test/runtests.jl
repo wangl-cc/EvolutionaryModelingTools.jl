@@ -41,17 +41,24 @@ using Test
                     iv = f(arg) # internal variable
                     mpd = map(exp, iv) # global variable
                     A[1] = 1 # setindex
+                    A[begin+1:end] # setindex
+                    A[(i=1; begin+i:end-i)]
+                    i # i is a local variable defined in above expression
+                    A[begin+j:end-j] # j is a arguments needed
+                    arg.x
                     g(x) = x + 1 # local function
                     (x, y) -> x + y # anonymous function
                     @inbounds iv[ind] # macro call
                     rand(rng)::Float64 # type annotation
                 end
-            ) == Set([:A, :arg, :ind, :rng])
+            ) == Set([:A, :arg, :j, :ind, :rng])
             @test collectargs(
                 quote
                     iv = f(arg) # internal variable
                     mpd = map(exp, iv) # global variable
                     A[1] = 1 # setindex
+                    A[begin+1:end] # setindex
+                    arg.x
                     g(x) = x + 1 # local function
                     (x, y) -> x + y # anonymous function
                     @inbounds iv[ind] # macro call

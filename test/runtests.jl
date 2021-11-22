@@ -65,6 +65,12 @@ using Test
                     rand(rng)::Float64 # type annotation
                 end
             ) == Set([:A, :arg, :exp, :ind, :rng]) # if exp is not mark as global, it will be collected
+            @test collectargs(
+                :((x::Int, y) -> x * y)
+            ) == Set([:x, :y])
+            @test collectargs(
+                :((x, y) -> @ein C[i, j] := x[i] * y[j]),
+            ) == Set([:x, :y])
         end
     end
 end

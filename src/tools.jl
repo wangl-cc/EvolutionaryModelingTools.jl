@@ -114,6 +114,19 @@ where arguments of functions were collected from given expression automatically.
 !!! warning
     The expression follow the same name preserve rule as `@cfunc` and `@ufunc`,
     don't use those variable names for other usage.
+
+This macro cannot parse macro expression.
+Thus in some cases, arguments of expression with macro may not be collected correctly.
+To avoid this, define reaction with anonymous functions may helpfully:
+```
+@reaction reaction begin
+    (c, A, B) -> @einsum C[i, j] := c * A[i, j] * B[j, k] # where C, i, j, k should not be collected
+    begin
+        # do something
+    end
+end
+```
+in this case, only arguments of anonymous function (`c`, `A` and `B`) will be collected.
 """
 macro reaction(name::Symbol, block::Expr)
     if block.head == :block && length(block.args) == 4
@@ -165,7 +178,27 @@ function _warparg(sym::Symbol, preserve)
 end
 
 # collect arguments from given expression
-collectargs(ex) = collectargs!(Set{Symbol}(), Set{Symbol}(), ex)
+function collectargs(ex)
+    if ex.head == :(->)
+        return unbox_args!(Set{Symbol}(), ex.args[1])
+    else
+        return collectargs!(Set{Symbol}(), Set{Symbol}(), ex)
+    end
+end
+
+function unbox_args!(args, ex::Expr)
+    if ex.head == :(::)
+        push!(args, ex.args[1])
+    elseif ex.head == :tuple
+        for arg in ex.args
+            unbox_args!(args, arg)
+        end
+    else
+        error("can't parse expression")
+    end
+    return args
+end
+unbox_args!(args, s::Symbol) = (push!(args, s), args)
 
 # `args` is a list of symbols will be treat as arguments name
 # `vars` is a list of symbols which are names of internal variable or global variables

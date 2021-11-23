@@ -5,7 +5,6 @@ using Random
 using Test
 using EvolutionaryModelingTools
 
-
 const c = ContinuousClock(100.0) # define a clock, the population will growth for 100 time unit
 
 const r = 0.5
@@ -18,16 +17,15 @@ const n = recorded(DynamicEntry, c, 10)   # define a scalar to record population
 Random.seed!(1)
 
 @cfunc growth_c(r, n) = r * n
-@ufunc growth_u!(ind, n) = n[ind] += 1
+@ufunc growth_u!(ind, n) = n[ind.I...] += 1 # ensure the indexing is correct
 
 @cfunc death_c(d, n) = d * n
-@ufunc death_u!(ind, n) = n[ind] -= 1
+@ufunc death_u!(ind, n) = n[ind.I...] -= 1 # ensure the indexing is correct
 
 @cfunc comp_c(r, K, n) = r * n * n / K
-@ufunc comp_u!(ind::CartesianIndex{0}, n) = n[ind] -=1
+@ufunc comp_u!(ind::CartesianIndex{0}, n) = n[ind] -= 1
 
 @ufunc check_extinction(n) = n == 0 ? :extinct : :finnish # check
-
 
 growth = Reaction(growth_c, growth_u!)
 death = Reaction(death_c, death_u!)
@@ -35,7 +33,6 @@ competition = Reaction(comp_c, comp_u!)
 
 ps = (; r, d, K, n)
 rs = (growth, death, competition)
-
 
 e1 = getentries(gillespie(check_extinction, c, ps, rs)[1].n)
 

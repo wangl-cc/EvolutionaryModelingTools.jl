@@ -30,7 +30,7 @@ end
         resize!(m, (n, n))
         # rand competition matrix
         m[:, n] = rand(rng, n)
-        m[n, 1:n-1] = rand(rng, 1, n-1)
+        m[n, 1:n-1] = rand(rng, 1, n - 1)
     end
 end
 
@@ -81,7 +81,7 @@ for _ in clock
         resize!(m, (n, n))
         # rand competition matrix
         m[:, n] = rand(n)
-        m[n, 1:n-1] = rand(1, n-1)
+        m[n, 1:n-1] = rand(1, n - 1)
     elseif ind == 3
         i = sample(competition_rate, rn - rates_sum_acc[2])[1]
         v[i] -= 1

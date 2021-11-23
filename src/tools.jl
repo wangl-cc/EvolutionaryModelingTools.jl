@@ -67,10 +67,8 @@ Base.@propagate_inbounds growth_u!(ind::CartesianIndex{1}, x) = x[ind] += 1
 """
 macro ufunc(ex)
     fname, fargs = _parsefunc(ex, (:t, :ind, :rng))
-    adapter = :(
-        Base.@propagate_inbounds $fname(rng, t, ind, args::NamedTuple) =
-            $fname($(fargs...))
-    )
+    adapter = :(Base.@propagate_inbounds $fname(rng, t, ind, args::NamedTuple) =
+        $fname($(fargs...)))
     return esc(Expr(:block, adapter, ex))
 end
 
@@ -136,15 +134,18 @@ macro reaction(name::Symbol, block::Expr)
         ubody = block.args[4]
         cargs = collectargs(cbody)
         uargs = collectargs(ubody)
-        return esc(Expr(:block,
-            :(Base.@propagate_inbounds $cname(t, args::NamedTuple) =
-                $cname($((_warparg(arg, (:t,)) for arg in cargs)...))),
-            :(Base.@propagate_inbounds $cname($(cargs...)) = $cbody),
-            :(Base.@propagate_inbounds $uname(rng, t, ind, args::NamedTuple) =
-                $uname($((_warparg(arg, (:t, :ind, :rng)) for arg in uargs)...))),
-            :(Base.@propagate_inbounds $uname($(uargs...)) = $ubody),
-            Expr(:(=), name, :(Reaction($cname, $uname))),
-        ))
+        return esc(
+            Expr(
+                :block,
+                :(Base.@propagate_inbounds $cname(t, args::NamedTuple) =
+                    $cname($((_warparg(arg, (:t,)) for arg in cargs)...))),
+                :(Base.@propagate_inbounds $cname($(cargs...)) = $cbody),
+                :(Base.@propagate_inbounds $uname(rng, t, ind, args::NamedTuple) =
+                    $uname($((_warparg(arg, (:t, :ind, :rng)) for arg in uargs)...))),
+                :(Base.@propagate_inbounds $uname($(uargs...)) = $ubody),
+                Expr(:(=), name, :(Reaction($cname, $uname))),
+            ),
+        )
     else
         throw(ArgumentError("can't parse expression"))
     end
@@ -242,7 +243,10 @@ function collectargs!(args, vars, _ex::Expr)
         return collectargs!(args, vars, ex.args[1]) # collect left side of :: but ignore right side
     elseif head == :ref # ignore begin and end in reference
         collectargs!(args, vars, ex.args[1])
-        foreach(arg -> collectargs!(args, TempUnion(vars, (:begin, :end)), arg), ex.args[2:end])
+        foreach(
+            arg -> collectargs!(args, TempUnion(vars, (:begin, :end)), arg),
+            ex.args[2:end],
+        )
     elseif head in (:call, :macrocall) # function and macro will not be treat as a args
         foreach(arg -> collectargs!(args, vars, arg), ex.args[2:end])
     else # in other cases, collect all arguments
@@ -253,7 +257,7 @@ end
 
 # union two collections
 # but push! to the first collection
-struct TempUnion{S, T}
+struct TempUnion{S,T}
     s::S
     t::T
 end

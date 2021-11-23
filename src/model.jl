@@ -16,7 +16,7 @@ end
 # Base.map for large Tuple is not type stable
 # however, this package must process large Tuples
 @generated function gmap(f, tp::Tuple)
-    N  = length(tp.parameters)
+    N = length(tp.parameters)
     return Expr(:tuple, (:(f(tp[$i])) for i in 1:N)...)
 end
 
@@ -25,11 +25,11 @@ end
 # this method return a Vector
 @generated function gaccumulate(tp::Tuple)
     ret_type = promote_type(tp.parameters...)
-    N  = length(tp.parameters)
+    N = length(tp.parameters)
     return quote
         ret = Vector{$ret_type}(undef, $N)
         ret[1] = tp[1]
-        $((:(@inbounds ret[$i] = ret[$(i-1)] + tp[$i]) for i in 2:N)...)
+        $((:(@inbounds ret[$i] = ret[$(i - 1)] + tp[$i]) for i in 2:N)...)
         return ret
     end
 end
@@ -38,25 +38,31 @@ end
 # generate if-elseif branch for each reaction for type stable code
 # as[i], rs[i] are type unstable without @generated
 @generated function applyreaction(rng::AbstractRNG, t, rs, ps, as, acc, ind, rn)
-    N  = length(rs.parameters)  # number of reactions
-    ex = Expr(:elseif, :(ind==$N), quote
-                (rs[$N].u)(rng, t, sample(as[$N], rn - acc[$(N-1)]), ps); nothing
-            end
-        ) # last elseif block with the last reaction
+    N = length(rs.parameters)  # number of reactions
+    ex = Expr(
+        :elseif,
+        :(ind == $N),
+        quote
+            (rs[$N].u)(rng, t, sample(as[$N], rn - acc[$(N - 1)]), ps)
+            nothing
+        end,
+    ) # last elseif block with the last reaction
     for i in N-1:-1:2
-        ex = Expr(:elseif, :(ind==$i), quote
-                    (rs[$i].u)(rng, t, sample(as[$i], rn - acc[$(i-1)]), ps); nothing
-                end,
-                ex
-            ) # append elseif block form last to the second
-    end
-    return Expr(:if, :(ind==1), quote
-                (rs[1].u)(rng, t, sample(as[1], rn), ps); nothing
+        ex = Expr(
+            :elseif,
+            :(ind == $i),
+            quote
+                (rs[$i].u)(rng, t, sample(as[$i], rn - acc[$(i - 1)]), ps)
+                nothing
             end,
-            ex
-        ) # append if block at first
+            ex,
+        ) # append elseif block form last to the second
+    end
+    return Expr(:if, :(ind == 1), quote
+        (rs[1].u)(rng, t, sample(as[1], rn), ps)
+        nothing
+    end, ex) # append if block at first
 end
-
 
 """
     gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple, rs::Tuple)
@@ -129,7 +135,7 @@ function gillespie(hook!, rng::AbstractRNG, c, ps::NamedTuple, rs::Tuple)
 end
 gillespie(c, ps::NamedTuple, rs::Tuple) =
     gillespie((_...) -> :finnish, Random.GLOBAL_RNG, c, ps, rs)
-gillespie(rng::AbstractRNG, c,  ps::NamedTuple, rs::Tuple) =
+gillespie(rng::AbstractRNG, c, ps::NamedTuple, rs::Tuple) =
     gillespie((_...) -> :finnish, rng, c, ps, rs)
 gillespie(hook!, c, ps::NamedTuple, rs::Tuple) =
     gillespie(hook!, Random.GLOBAL_RNG, c, ps, rs)

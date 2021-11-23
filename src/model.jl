@@ -89,9 +89,10 @@ The clock `c` and parameters `ps` will be updated during the simulation.
 """
 function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple, rs::Tuple)
     term_state = :finnish # terminate state
-    t′ = currenttime(c)
-    for t in c
-        as = gmap(r -> (r.c)(t, ps), rs)   # calculate "rate" for each reaction
+    t = currenttime(c)
+    for _ in c
+        # use t before update it may cause type un-stability
+        as = gmap(r -> (r.c)(currenttime(c), ps), rs)   # calculate "rate" for each reaction
         as_sum = gmap(sum, as)             # sum of "rate" for each reaction
         as_sum_acc = gaccumulate(as_sum)   # accumulate of the sum of "rate" for all reactions
         as_sum_sum = as_sum_acc[end]       # sum of "rate" for all reactions
@@ -100,14 +101,14 @@ function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple,
             break                          # break the loop
         end
         τ = -log(rand(rng, typeof(as_sum_sum))) / as_sum_sum   # calculate τ
-        t′ = increase!(c, τ) # increase clock time
+        t = increase!(c, τ) # increase clock time
         rn = rand(rng, typeof(as_sum_sum)) * as_sum_sum # generate random number, use this rand number twice is OK
         ind = searchsortedfirst(as_sum_acc, rn)::Int # sample reaction index, use _sample instead of sample to return Int
-        applyreaction(rng, t′, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
-        term_state = hook!(rng, t′, ind, ps) # call hook function
+        applyreaction(rng, t, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
+        term_state = hook!(rng, t, ind, ps) # call hook function
         term_state == :finnish || break # break if state is not :finnish
     end
-    return t′, term_state
+    return t, term_state
 end
 
 """

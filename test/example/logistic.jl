@@ -25,7 +25,8 @@ Random.seed!(1)
 @cfunc comp_c(r, K, n) = r * n * n / K
 @ufunc comp_u!(ind::CartesianIndex{0}, n) = n[ind] -= 1
 
-@ufunc check_extinction(n) = n == 0 ? :extinct : :finnish # check
+# the ind must be CartesianIndex{0}, this is just for test
+@ufunc check_extinction(ind::CartesianIndex{0}, n) = n[ind] == 0 ? :extinct : :finnish # check
 
 growth = Reaction(growth_c, growth_u!)
 death = Reaction(death_c, death_u!)

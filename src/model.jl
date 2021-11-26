@@ -37,30 +37,35 @@ end
 # apply the given reaction to update system state
 # generate if-elseif branch for each reaction for type stable code
 # as[i], rs[i] are type unstable without @generated
-@generated function applyreaction(rng::AbstractRNG, t, rs, ps, as, acc, ind, rn)
+@generated function applyreaction(hook!, rng::AbstractRNG, t, rs, ps, as, acc, ind, rn)
     N = length(rs.parameters)  # number of reactions
+    sub = Symbol("sub_$N")
     ex = Expr(
         :elseif,
         :(ind == $N),
         quote
-            (rs[$N].u)(rng, t, sample(as[$N], rn - acc[$(N - 1)]), ps)
-            nothing
+            $sub = sample(as[$N], rn - acc[$(N - 1)])
+            (rs[$N].u)(rng, t, $sub, ps)
+            return hook!(rng, t, $sub, ps)
         end,
     ) # last elseif block with the last reaction
     for i in N-1:-1:2
+        sub = Symbol("sub_$i")
         ex = Expr(
             :elseif,
             :(ind == $i),
             quote
-                (rs[$i].u)(rng, t, sample(as[$i], rn - acc[$(i - 1)]), ps)
-                nothing
+                $sub = sample(as[$i], rn - acc[$(i - 1)])
+                (rs[$i].u)(rng, t, $sub, ps)
+                return hook!(rng, t, $sub, ps)
             end,
             ex,
         ) # append elseif block form last to the second
     end
     return Expr(:if, :(ind == 1), quote
-        (rs[1].u)(rng, t, sample(as[1], rn), ps)
-        nothing
+        sub_1 = sample(as[1], rn)
+        (rs[1].u)(rng, t, sub_1, ps)
+        return hook!(rng, t, sub_1, ps)
     end, ex) # append if block at first
 end
 
@@ -104,8 +109,7 @@ function gillespie!(hook!, rng::AbstractRNG, c::ContinuousClock, ps::NamedTuple,
         t = increase!(c, τ) # increase clock time
         rn = rand(rng, typeof(as_sum_sum)) * as_sum_sum # generate random number, use this rand number twice is OK
         ind = searchsortedfirst(as_sum_acc, rn)::Int # sample reaction index, use _sample instead of sample to return Int
-        applyreaction(rng, t, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
-        term_state = hook!(rng, t, ind, ps) # call hook function
+        term_state = applyreaction(hook!, rng, t, rs, ps, as, as_sum_acc, ind, rn) # apply reaction of index ind to update system state
         term_state == :finnish || break # break if state is not :finnish
     end
     return t, term_state

@@ -1,7 +1,7 @@
 name = "EvolutionaryModelingTools"
 uuid = "faf572ed-2b53-4324-a741-daa175e50348"
 authors = ["Long Wang <wangl.cc@outlook.com>"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"

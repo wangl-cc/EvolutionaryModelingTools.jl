@@ -92,7 +92,7 @@ will create a `Reaction` with a "calculation" function:
 ```
 and an "update" function:
 ```julia
-@cfunc Base.@propagate_inbounds growth_u!(ind, x) = begin
+@ufunc Base.@propagate_inbounds growth_u!(ind, x) = begin
     i = ind[1]
     x[i] += 1
 end
@@ -118,7 +118,7 @@ Thus in some cases, arguments of expression with macro may not be collected corr
 To avoid this, define reaction with anonymous functions may helpfully:
 ```
 @reaction reaction begin
-    (c, A, B) -> @einsum C[i, j] := c * A[i, j] * B[j, k] # where C, i, j, k should not be collected
+    (A, B) -> @einsum C[i, k] := A[i, j] * B[j, k] # where C, i, j, k should not be collected
     begin
         # do something
     end

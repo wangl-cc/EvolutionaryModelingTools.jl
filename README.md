@@ -40,11 +40,12 @@ you must define reactions firstly (jump in `DifferentialEquations.jl`),
 For example, the infect reaction of above SIR model is defined as:
 
 ```julia
+# reaction: S_i + I_ij -> 2I_ij
 @cfunc infect_c(β, S, I) = β * S' * I # function to calculate the rate of infection
 @ufunc function infect_u!(ind, S, I) # function to update the state when infection happens
     # ind is the index of the reaction selected with weight calculated by `infect_c`
-    S[ind[2]] -= 1 # S_j  -> S_j  - 1
-    I[ind] += 1    # I_ij -> I_ij + 1
+    S[ind[2]] -= 1 # S_j -= 1
+    I[ind] += 1    # I_ij += 1
     return nothing
 end
 infect = Reaction(infect_c, infect_u!)
@@ -80,20 +81,19 @@ reactions = (infect, ...)
 and define the initial state and parameters of the system as a named tuple:
 
 ```julia
-params = (β = 0.1, ..., S = [10], I = fill(0, 1, 1), R = fill(0, 1, 1))
+params = (β = 0.1, ..., S = [100], I = [1;;], R = [0;;]) # the [1;;] syntax requires Julia >= 1.7
 ```
 
 Then, you can use `gillespie` to simulate the system:
 
 ```julia
 max_time = 100 # the maximum time of simulation
-params′, t, term = gillespie(max_time, reactions, params)
+params′, t, term = gillespie(max_time, params, reactions)
 ```
 
 where the `gillespie` function returns an tuple `t, ps′, term`
 where `t` is the time when the simulation ends, `params′` is an updated `params`,
-and `term` is a flag indicating
-whether the simulation is finished after the maximum time
+and `term` is a flag indicating whether the simulation is finished after the maximum time
 or break with given flag.
 
 **Note**: Changes of the state will not be recorded by default,
@@ -102,11 +102,11 @@ but you can use my another package `RecordedArrays` to record them, like this:
 ```julia
 using RecordedArrays
 c = DiscreteClock(max_time) # clock store information of max_time
-S = recorded(DynamicEntry, c, [10]) # create a recorded vector as S
-I = recorded(DynamicEntry, c, fill(0, 1, 1)) # create a recorded matrix as I
-R = recorded(DynamicEntry, c, fill(0, 1, 1)) # create a recorded matrix as R
-params = (β = 0.1, ..., S = S, I = I, R = R) # add new S, I, R to params
-gillespie(c, params, reactions) # run the simulation with new params, must replace the max_time to clock
+S = recorded(DynamicEntry, c, [100]) # create a recorded vector as S with the clock c
+I = recorded(DynamicEntry, c, [1;;]) # create a recorded matrix as I with the clock c
+R = recorded(DynamicEntry, c, [0;;]) # create a recorded matrix as R with the clock c
+params = (; β = 0.1, ..., S, I, R) # create new params with recorded S, I, R
+gillespie(c, params, reactions) # run the simulation with the clock and new params
 ```
 
 More information about `RecordedArrays`, see its

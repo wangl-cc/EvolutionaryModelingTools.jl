@@ -48,6 +48,7 @@ end
             (rs[$N].u)(rng, t, $sub, ps)
             return hook!(rng, t, $sub, ps)
         end,
+        :(return :finnish) # this else is never executed but for type stable
     ) # last elseif block with the last reaction
     for i in N-1:-1:2
         sub = Symbol("sub_$i")

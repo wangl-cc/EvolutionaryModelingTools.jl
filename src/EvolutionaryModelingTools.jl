@@ -10,5 +10,6 @@ export Reaction, gillespie, gillespie!
 include("tools.jl")
 include("sample.jl")
 include("model.jl")
+include("scalar.jl")
 
 end # module

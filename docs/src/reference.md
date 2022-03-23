@@ -1,10 +1,5 @@
 # References
 
-```@docs
-Reaction
-@cfunc
-@ufunc
-@reaction
-gillespie
-gillespie!
+```@autodocs
+Modules = [EvolutionaryModelingTools, EvolutionaryModelingTools.Scalar]
 ```

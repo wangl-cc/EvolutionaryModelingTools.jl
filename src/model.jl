@@ -133,9 +133,16 @@ More about terminate state, see [`gillespie!`](@ref).
 - `c`: a `ContinuousClock`, a end time or a tuple of a begin and a end time;
 - `ps`: a NamedTuple contains state, parameters even args used by `hook!` of the system;
 - `rs`: a tuple contains reactions, all parameters required by reactions must be in `ps` with same name.
+
+!!! info
+    In order to update single value state,
+    it must be converted to a [`ScalarType`](@ref Scalar.ScalarType) with [`scalar`](@ref Scalar.scalar).
 """
 function gillespie(hook!, rng::AbstractRNG, c, ps::NamedTuple, rs::Tuple)
-    c′, ps′ = _copy_args(c, ps) # copy args to avoid mutation of ps
+    # process c and ps
+    # 1. deepcopy to avoid change the original values
+    # 2. if c is a real or a tuple, convert it to ContinuousClock
+    c′, ps′ = _process_args(c, ps)
     t, term_state = gillespie!(hook!, rng, c′, ps′, rs)
     return ps′, t, term_state
 end
@@ -146,6 +153,6 @@ gillespie(rng::AbstractRNG, c, ps::NamedTuple, rs::Tuple) =
 gillespie(hook!, c, ps::NamedTuple, rs::Tuple) =
     gillespie(hook!, Random.GLOBAL_RNG, c, ps, rs)
 
-_copy_args(c::ContinuousClock, ps) = deepcopy((c, ps))
-_copy_args(c::Real, ps) = ContinuousClock(c), deepcopy(ps)
-_copy_args((s, e)::Tuple{Real,Real}, ps) = ContinuousClock(e, s), deepcopy(ps)
+_process_args(c::ContinuousClock, ps) = deepcopy((c, ps))
+_process_args(c::Real, ps) = ContinuousClock(c), deepcopy(ps)
+_process_args((s, e)::Tuple{Real,Real}, ps) = ContinuousClock(e, s), deepcopy(ps)

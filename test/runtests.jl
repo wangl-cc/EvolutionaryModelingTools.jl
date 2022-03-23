@@ -16,6 +16,10 @@ using Test
         end
     end
 
+    @testset "Scalar" begin
+        include("scalar.jl")
+    end
+
     @testset "Sample" begin
         @test sample(1, 1) == CartesianIndex()
         @test sample(fill(1), 1) == CartesianIndex()

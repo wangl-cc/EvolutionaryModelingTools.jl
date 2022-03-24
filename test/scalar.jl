@@ -2,6 +2,10 @@ using EvolutionaryModelingTools.Scalar
 
 x = scalar(1)
 y = scalar(1im)
+@test repr(x) == "scalar(1)"
+@test repr(y) == "scalar($(1im))"
+@test repr("text/plain", x) == "1"
+@test repr("text/plain", y) == repr("text/plain", 1im)
 @test x[] == 1
 @test x[1] == 1
 @test x[1, 1] == 1
@@ -29,7 +33,7 @@ y = scalar(1im)
 @test float(y)::ComplexF64 == im
 @test exp(x) == exp(1)
 @test ℯ^y == exp(im)
-x[] += 0x1
+x[] = 0x2
 @test x[] == 2
 x[1] += 1
 @test x[1] == 3

@@ -75,4 +75,8 @@ for op in (:+, :-, :*, :/, :\, :^, :(==))
     @eval @inline Base.$op(x::ST{T}, y::ST{T}) where {T} = $op(x[], y[])
 end
 
+# show
+Base.show(io::IO, x::ST) = print(io, "scalar(", x[], ")")
+Base.show(io::IO, ::MIME"text/plain", x::ST) = show(io, x[])
+
 end # module Scalar

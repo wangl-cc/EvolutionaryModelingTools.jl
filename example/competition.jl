@@ -1,6 +1,7 @@
 using RecordedArrays
 using RecordedArrays.ResizingTools
 using Random
+using LoopVectorization
 using EvolutionaryModelingTools
 using EvolutionaryModelingTools: sample
 
@@ -13,13 +14,13 @@ const m = ones(1, 1)
 
 # simulate with this package
 ## define reactions
-@reaction growth begin
-    r * (1 - μ) * v
-    v[ind] += 1
-end
 
+# define growth with @reaction_eq, loop vectorization is disabled but inbounds, fastmath and  offset are enable
+@reaction_eq growth r * (1 - μ) v[i] → 2v[i] avx=false inbounds=true fastmath=true offset=true
+
+# define mutation with @reaction and @quickloop with given index
 @reaction mutation begin
-    @. r * μ * v
+    @quickloop r * μ * v[i]
     begin
         push!(v, 1)
         n = length(v)
@@ -30,11 +31,9 @@ end
     end
 end
 
+# define competition with @reaction and @quickloop
 @reaction competition begin
-    begin
-        c = r / K # baseline competition coefficient
-        @. c * v * m * v'
-    end
+    @quickloop (r / K) * v[i] * m[i, j] * v[j] turbo # force enable loop vectorization
     begin
         i = ind[1]
         v[i] -= 1

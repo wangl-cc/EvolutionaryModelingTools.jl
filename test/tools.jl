@@ -12,15 +12,20 @@ end
     A = rand(4)
     B = rand(4)
     C = rand(4, 4)
+    D = rand(4, 4)
+    # those functions is sensitive to the order of arguments, which is undetermined
     f1 = @quickloop R1[i, j] := A[i] * B[j]
     f2 = @quickloop R2[j, i] := A[i] * B[j]
-    f3 = @quickloop C[i, j] # just make a copy
+    f3 = @quickloop A[i, j] # just make a copy
     f4 = @quickloop R3[i, j, k] := A[i, j] * B[i, k]
-    @test f1(A, B) == A .* B' == transpose(f2(A, B)) == f3(A .* B')
-    D = f4(A .* B', C)
+    @test (f1(A, B) == A .* B' == transpose(f2(A, B)) ||
+           f1(A, B) == B .* A' == transpose(f2(A, B)))
+    @test C == f3(C)
+    E = f4(C, D)
     equality_f4 = true
     for k in 1:4, j in 1:4, i in 1:4
-        equality_f4 &= (D[i, j, k] == A[i] * B[j] * C[i, k])
+        equality_f4 &= ((E[i, j, k] == C[i, j] * D[i, k]) ||
+            E[i, j, k] == D[i, j] * C[i, k])
     end
     @test equality_f4
 end
@@ -32,26 +37,26 @@ end
         @test inds_ax[:j] == Dict(:B => [1])
     end
     let
-        inds, inds_ax = collectaxes(:(D[]), :(A[i] * C[i, j] * B[j]))
+        inds, inds_ax = collectaxes(:(E[]), :(A[i] * C[i, j] * B[j]))
         @test inds == [:i, :j]
         @test inds_ax[:i] == Dict(:A => [1], :C => [1])
         @test inds_ax[:j] == Dict(:B => [1], :C => [2])
     end
     let
-        inds, inds_ax = collectaxes(:(D[j, i]), :(A[i] * C[i, j] * B[j]))
+        inds, inds_ax = collectaxes(:(E[j, i]), :(A[i] * C[i, j] * B[j]))
         @test inds == [:j, :i]
         @test inds_ax[:i] == Dict(:A => [1], :C => [1])
         @test inds_ax[:j] == Dict(:B => [1], :C => [2])
     end
     let
-        inds, inds_ax = collectaxes(:(D[i, j, k]), :(c * A[i] * B[j, k]))
+        inds, inds_ax = collectaxes(:(E[i, j, k]), :(c * A[i] * B[j, k]))
         @test inds == [:i, :j, :k]
         @test inds_ax[:i] == Dict(:A => [1])
         @test inds_ax[:j] == Dict(:B => [1])
         @test inds_ax[:k] == Dict(:B => [2])
     end
     let
-        inds, inds_ax = collectaxes(:(D[i, j]), :(A[i] * B[j, j]))
+        inds, inds_ax = collectaxes(:(E[i, j]), :(A[i] * B[j, j]))
         @test inds == [:i, :j]
         @test inds_ax[:i] == Dict(:A => [1])
         @test inds_ax[:j] == Dict(:B => [1, 2])

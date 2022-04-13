@@ -4,9 +4,9 @@ using EvolutionaryModelingTools
 using EvolutionaryModelingTools.Scalar
 
 # parameters
-const T = 100.0
-const β = 0.001
-const ν = 0.01
+const T = 10.0
+const β = 0.005
+const ν = 0.1
 const α = 0.2
 const r = 0.5
 const d = 0.1

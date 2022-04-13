@@ -47,8 +47,7 @@ ps = (; r, d, K, x) # define the parameters for the model
 rs = (growth, death, comp) # define the reactions for the model
 
 # simulate
-Random.seed!(1)
-ps_new, t, state = gillespie(c, ps, rs)
+ps_new, t, state = gillespie(MersenneTwister(1), c, ps, rs)
 
 # plot
 timeseries(ps_new.x;
@@ -134,12 +133,88 @@ ps = (; r, d, K, μ, x, m) # define the parameters for the model
 rs = (growth, mutation, competition) # define the reactions for the model
 
 # simulate
-Random.seed!(1)
-ps_new, t, state = gillespie(check_extinction, c, ps, rs)
+ps_new, t, state = gillespie(check_extinction, MersenneTwister(1), c, ps, rs)
 
 # plot
 timeseries(ps_new.x;
     grid=false, frame=:box, legend=false,
     title="Population Dynamics", xlabel="Time", ylabel="Population Size",
 )
+```
+
+## SIR model with vital dynamics and logistic population
+
+A simple SIR model with vital dynamics and logistic population,
+where the host population follows the logistic growth model.
+
+This model may contains more reactions than the previous example,
+which can be generated easily by `@reaction_eq`.
+
+The deterministic differential equation of this model is:
+
+```math
+\begin{aligned}
+\dot{S} &= r (S + I + R) - S(d + c (S + I + R) + \beta I) \\
+\dot{I} &= I (\beta S - d - c (S + I + R) - \nu) \\
+\dot{R} &= R (\nu - d - c (S + I + R))
+\end{aligned}
+```
+
+```@example sir_with_vital_dynamics_and_logistic_population
+using RecordedArrays
+using EvolutionaryModelingTools
+using Random
+using Plots
+
+const T = 100.0
+const β = 0.005
+const ν = 0.01
+const α = 0.2
+const r = 0.5
+const d = 0.1
+const c = 0.001
+const S = 100
+const I = 10
+const R = 0
+
+# epidemic dynamics
+@reaction_eq infection β S + I --> I + I
+@reaction_eq recovery ν I --> R
+@reaction_eq virulence α I --> 0 # death of infection host caused by virus
+# demography dynamics, generate reactions with @eval
+for sym in (:S, :I, :R)
+    r_name = Symbol(:growth_, sym)
+    d_name = Symbol(:death_, sym)
+    @eval @reaction_eq $r_name r $sym --> S + $sym # growth
+    @eval @reaction_eq $d_name d $sym --> 0 # death
+    for sym′ in (:S, :I, :R)
+        c_name = Symbol(:competition_, sym, sym′)
+        @eval @reaction_eq $c_name c $sym + $sym′ --> $sym′ # competition
+    end
+end
+
+const REACTIONS = (
+    infection, recovery, virulence,
+    growth_S, growth_I, growth_R,
+    death_S, death_I, death_R,
+    competition_SS, competition_SI, competition_SR,
+    competition_IS, competition_II, competition_IR,
+    competition_RS, competition_RI, competition_RR
+)
+
+clock = ContinuousClock(T)
+ps = (;β, ν, α, r, d, c,
+    S=recorded(DynamicEntry, clock, S),
+    I=recorded(DynamicEntry, clock, I),
+    R=recorded(DynamicEntry, clock, R),
+)
+ps_new, t, term = gillespie(MersenneTwister(1), clock, ps, REACTIONS)
+
+plt = plot(grid=false, frame=:box,
+    title="Population Dynamics", xlabel="Time", ylabel="Population Size"
+)
+timeseries!(plt, ps_new.S; label="S")
+timeseries!(plt, ps_new.I; label="I")
+timeseries!(plt, ps_new.R; label="R")
+plt
 ```

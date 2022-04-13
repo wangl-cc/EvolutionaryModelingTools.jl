@@ -133,7 +133,7 @@ ps = (; r, d, K, μ, x, m) # define the parameters for the model
 rs = (growth, mutation, competition) # define the reactions for the model
 
 # simulate
-ps_new, t, state = gillespie(MersenneTwister(1), check_extinction, c, ps, rs)
+ps_new, t, state = gillespie(check_extinction, MersenneTwister(1), c, ps, rs)
 
 # plot
 timeseries(ps_new.x;
@@ -153,9 +153,11 @@ which can be generated easily by `@reaction_eq`.
 The deterministic differential equation of this model is:
 
 ```math
-\dot{S} = r (S + I + R) - S(d + c (S + I + R) + \beta I)
-\dot{I} = I (\beta S - d - c (S + I + R) - \nu)
-\dot{R} = R (\nu - d - c (S + I + R))
+\begin{aligned}
+\dot{S} &= r (S + I + R) - S(d + c (S + I + R) + \beta I) \\
+\dot{I} &= I (\beta S - d - c (S + I + R) - \nu) \\
+\dot{R} &= R (\nu - d - c (S + I + R))
+\end{aligned}
 ```
 
 ```@example sir_with_vital_dynamics_and_logistic_population

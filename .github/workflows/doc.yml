@@ -11,6 +11,14 @@ on:
       - "docs/**"
       - "Project.toml"
       - ".github/workflows/doc.yml"
+  pull_request:
+    branches: master
+    paths:
+      - "src/**"
+      - "docs/**"
+      - "Project.toml"
+      - ".github/workflows/doc.yml"
+  workflow_dispatch:
 
 jobs:
   docs:

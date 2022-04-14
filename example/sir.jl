@@ -6,7 +6,7 @@ using EvolutionaryModelingTools.Scalar
 # parameters
 const T = 10.0
 const β = 0.005
-const ν = 0.1
+const ν = 0.01
 const α = 0.2
 const r = 0.5
 const d = 0.1

@@ -5,7 +5,7 @@ using LoopVectorization
 using EvolutionaryModelingTools
 using EvolutionaryModelingTools: sample
 
-const T = 100.0
+const T = 10.0
 const r = 0.5
 const K = 100
 const μ = 0.01

@@ -4,7 +4,7 @@ using EvolutionaryModelingTools
 using EvolutionaryModelingTools.Scalar
 
 # parameters
-const T = 100.0 # max time
+const T = 10.0 # max time
 const r = 0.5   # growth rate
 const d = 0.1   # death rate
 const K = 100   # carrying capacity

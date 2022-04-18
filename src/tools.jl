@@ -419,7 +419,7 @@ function gen_loop(inds, inds_ax, fn_args, lhs, rhs, opts...)
     end
     ret_name = lhs.args[1]
     ret_size = Expr[]
-    ret_type = _infer_ret_type(inds, fn_args, rhs)
+    ret_type = _infer_ret_type(inds, inds_ax, fn_args, rhs)
     loop_head = Expr(:block)
     for (i, ind) in enumerate(inds)
         array_name, dims = first(inds_ax[ind])
@@ -480,16 +480,16 @@ function _parse_opt(opt::Expr)
     end
 end
 
-function _infer_ret_type(inds, fn_args, ex)
-    ex_replace = MacroTools.postwalk(ex) do sym
-        if sym isa Symbol && sym in inds
-            return :begin # replace the iteration symbol with first index
-        else
-            return sym
-        end
+function _infer_ret_type(inds, inds_ax, fn_args, ex)
+    ex′ = Expr(:block, ex)
+    for ind in inds
+        array_name, dims = first(inds_ax[ind])
+        dim = first(dims)
+        assignment = :($ind = firstindex($array_name, $dim))
+        pushfirst!(ex′.args, assignment)
     end
     args = collect(fn_args)
-    promote_op_fn = Expr(:(->), Expr(:tuple, args...), ex_replace)
+    promote_op_fn = Expr(:(->), Expr(:tuple, args...), ex′)
     args_type = map(arg -> :(typeof($arg)), args)
     ret_type = :(Base.promote_op($promote_op_fn, $(args_type...)))
     return ret_type # expression for inferring the return type

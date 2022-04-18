@@ -16,11 +16,16 @@ end
     # those functions is sensitive to the order of arguments, which is undetermined
     f1 = @quickloop R1[i, j] := A[i] * B[j]
     f2 = @quickloop R2[j, i] := A[i] * B[j]
-    f3 = @quickloop A[i, j] # just make a copy
+    f3 = @quickloop ifelse(i == j, zero(eltype(A)), A[i, j]) # make diagonal zero
     f4 = @quickloop R3[i, j, k] := A[i, j] * B[i, k]
     @test (f1(A, B) == A .* B' == transpose(f2(A, B)) ||
            f1(A, B) == B .* A' == transpose(f2(A, B)))
-    @test C == f3(C)
+    F = f3(C)
+    equality_f3 = true
+    for i in 1:4, j in 1:4
+        equality_f3 &= ifelse(i == j, F[i, j] == 0, F[i, j] == C[i, j])
+    end
+    @test equality_f3
     E = f4(C, D)
     equality_f4 = true
     for k in 1:4, j in 1:4, i in 1:4
